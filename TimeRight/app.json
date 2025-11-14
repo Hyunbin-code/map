@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TimeRight",
-    "slug": "TimeRight",
+    "slug": "timeright",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,21 +10,61 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#4A90E2"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.timeright.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "TimeRight는 실시간 대중교통 알림을 제공하기 위해 현재 위치가 필요합니다.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "TimeRight는 백그라운드에서도 실시간 알림을 제공하기 위해 위치 권한이 필요합니다.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      },
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#4A90E2"
       },
+      "package": "com.timeright.app",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "TimeRight는 실시간 대중교통 알림을 제공하기 위해 위치 정보가 필요합니다.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4A90E2"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }
