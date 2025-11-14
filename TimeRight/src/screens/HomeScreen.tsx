@@ -6,15 +6,21 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import MapView, { Marker, Circle } from 'react-native-maps';
 import { useStore } from '../stores/useStore';
 import LocationService from '../services/LocationService';
 import BusAPIService from '../services/BusAPIService';
 import DecisionEngine from '../services/DecisionEngine';
 
+const { width, height } = Dimensions.get('window');
+
 export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pulseAnim] = useState(new Animated.Value(1));
 
   const {
     userLocation,
@@ -24,6 +30,26 @@ export default function HomeScreen() {
     isTracking,
     setIsTracking,
   } = useStore();
+
+  // 펄스 애니메이션 (위치 마커)
+  useEffect(() => {
+    if (isTracking) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [isTracking]);
 
   // 위치 추적 시작
   const startTracking = async () => {
@@ -55,9 +81,7 @@ export default function HomeScreen() {
     try {
       setIsLoading(true);
 
-      // Mock 버스 데이터 가져오기
       const busArrivals = await BusAPIService.getArrivalInfo('mock-stop-id');
-      console.log('Bus arrivals:', busArrivals);
 
       if (busArrivals.length === 0) {
         setError('버스 정보를 가져올 수 없습니다');
@@ -65,22 +89,18 @@ export default function HomeScreen() {
         return;
       }
 
-      // 첫 번째 버스
       const nextBus = busArrivals[0];
       const busArrivalSeconds = nextBus.arrivalTimeMinutes1 * 60;
 
-      // 가상의 거리와 신호등 대기 시간
-      const mockDistance = 300; // 300m
-      const mockSignalWaitTimes = [30, 45]; // 2개 신호등
+      const mockDistance = 300;
+      const mockSignalWaitTimes = [30, 45];
 
-      // 결정 엔진 실행
       const decision = DecisionEngine.decide({
         distance: mockDistance,
         busArrivalTime: busArrivalSeconds,
         signalWaitTimes: mockSignalWaitTimes,
       });
 
-      console.log('Decision:', decision);
       setCurrentDecision(decision);
       setIsLoading(false);
     } catch (err) {
@@ -90,7 +110,6 @@ export default function HomeScreen() {
     }
   };
 
-  // 컴포넌트 언마운트 시 추적 중지
   useEffect(() => {
     return () => {
       if (isTracking) {
@@ -99,126 +118,249 @@ export default function HomeScreen() {
     };
   }, [isTracking]);
 
+  // 기본 지도 위치 (서울 시청)
+  const defaultRegion = {
+    latitude: userLocation?.latitude || 37.5665,
+    longitude: userLocation?.longitude || 126.9780,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>⏱️ TimeRight</Text>
-        <Text style={styles.subtitle}>실시간 대중교통 네비게이션</Text>
-      </View>
+    <View style={styles.container}>
+      {/* 지도 영역 */}
+      <View style={styles.mapContainer}>
+        <MapView
+          style={styles.map}
+          region={defaultRegion}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          zoomEnabled={true}
+          rotateEnabled={false}
+        >
+          {userLocation && (
+            <>
+              {/* 사용자 위치 마커 */}
+              <Marker
+                coordinate={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }}
+              >
+                <Animated.View
+                  style={[
+                    styles.userMarker,
+                    { transform: [{ scale: pulseAnim }] },
+                  ]}
+                >
+                  <View style={styles.userMarkerInner} />
+                </Animated.View>
+              </Marker>
 
-      {/* 위치 정보 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📍 현재 위치</Text>
-        {userLocation ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              위도: {userLocation.latitude.toFixed(6)}
-            </Text>
-            <Text style={styles.infoText}>
-              경도: {userLocation.longitude.toFixed(6)}
-            </Text>
-            {userLocation.accuracy && (
-              <Text style={styles.infoText}>
-                정확도: {userLocation.accuracy.toFixed(0)}m
-              </Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.placeholderText}>위치 정보 없음</Text>
-        )}
+              {/* 정확도 원 */}
+              <Circle
+                center={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }}
+                radius={userLocation.accuracy || 50}
+                fillColor="rgba(74, 144, 226, 0.2)"
+                strokeColor="rgba(74, 144, 226, 0.5)"
+                strokeWidth={1}
+              />
+            </>
+          )}
+        </MapView>
 
+        {/* 상단 그라데이션 오버레이 */}
+        <View style={styles.topGradient} />
+
+        {/* 상단 헤더 */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>⏱️ TimeRight</Text>
+          <Text style={styles.headerSubtitle}>실시간 대중교통 알림</Text>
+        </View>
+
+        {/* 위치 추적 버튼 (플로팅) */}
         <TouchableOpacity
           style={[
-            styles.button,
-            isTracking ? styles.buttonDanger : styles.buttonPrimary,
+            styles.trackingButton,
+            isTracking && styles.trackingButtonActive,
           ]}
           onPress={isTracking ? stopTracking : startTracking}
           disabled={isLoading}
         >
-          <Text style={styles.buttonText}>
-            {isTracking ? '📍 추적 중지' : '📍 위치 추적 시작'}
+          <Text style={styles.trackingButtonIcon}>
+            {isTracking ? '📍' : '📍'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* 현재 결정 (알림) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔔 실시간 알림</Text>
-        {currentDecision ? (
-          <View
-            style={[
-              styles.decisionBox,
-              { backgroundColor: currentDecision.color + '20' },
-            ]}
-          >
-            <Text style={[styles.decisionMessage, { color: currentDecision.color }]}>
-              {currentDecision.message}
-            </Text>
-            {currentDecision.detail && (
-              <Text style={styles.decisionDetail}>{currentDecision.detail}</Text>
-            )}
-            <View style={styles.badgeContainer}>
-              <View
-                style={[
-                  styles.badge,
-                  {
-                    backgroundColor:
-                      currentDecision.urgency === 'HIGH'
-                        ? '#FF4444'
-                        : currentDecision.urgency === 'MEDIUM'
-                        ? '#FF9900'
-                        : '#00CC66',
-                  },
-                ]}
-              >
-                <Text style={styles.badgeText}>
+      {/* 하단 정보 카드 */}
+      <View style={styles.bottomSheet}>
+        <View style={styles.handleBar} />
+
+        <ScrollView
+          style={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 실시간 알림 카드 */}
+          {currentDecision && (
+            <View
+              style={[
+                styles.decisionCard,
+                { backgroundColor: currentDecision.color + '15' },
+                { borderLeftColor: currentDecision.color },
+              ]}
+            >
+              <View style={styles.decisionHeader}>
+                <Text style={[styles.decisionEmoji]}>
+                  {currentDecision.action === 'RUN'
+                    ? '🏃'
+                    : currentDecision.action === 'WALK_FAST'
+                    ? '🚶'
+                    : '✅'}
+                </Text>
+                <Text
+                  style={[
+                    styles.decisionMessage,
+                    { color: currentDecision.color },
+                  ]}
+                >
+                  {currentDecision.message}
+                </Text>
+              </View>
+              {currentDecision.detail && (
+                <Text style={styles.decisionDetail}>
+                  {currentDecision.detail}
+                </Text>
+              )}
+              <View style={styles.urgencyBadge}>
+                <View
+                  style={[
+                    styles.urgencyDot,
+                    { backgroundColor: currentDecision.color },
+                  ]}
+                />
+                <Text style={styles.urgencyText}>
                   {currentDecision.urgency === 'HIGH'
                     ? '긴급'
                     : currentDecision.urgency === 'MEDIUM'
                     ? '주의'
-                    : '여유'}
+                    : currentDecision.urgency === 'LOW'
+                    ? '여유'
+                    : '정보'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 위치 정보 카드 */}
+          <View style={styles.infoCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>📍</Text>
+              <Text style={styles.cardTitle}>현재 위치</Text>
+            </View>
+
+            {userLocation ? (
+              <View style={styles.locationInfo}>
+                <View style={styles.locationRow}>
+                  <Text style={styles.locationLabel}>위도</Text>
+                  <Text style={styles.locationValue}>
+                    {userLocation.latitude.toFixed(6)}°
+                  </Text>
+                </View>
+                <View style={styles.locationRow}>
+                  <Text style={styles.locationLabel}>경도</Text>
+                  <Text style={styles.locationValue}>
+                    {userLocation.longitude.toFixed(6)}°
+                  </Text>
+                </View>
+                {userLocation.accuracy && (
+                  <View style={styles.locationRow}>
+                    <Text style={styles.locationLabel}>정확도</Text>
+                    <Text style={styles.locationValue}>
+                      ±{userLocation.accuracy.toFixed(0)}m
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.statusBadge}>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.statusText}>실시간 추적 중</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.placeholderText}>
+                위치 추적을 시작하세요
+              </Text>
+            )}
+          </View>
+
+          {/* 테스트 버튼 */}
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={testDecision}
+            disabled={isLoading}
+          >
+            <Text style={styles.testButtonIcon}>🚌</Text>
+            <Text style={styles.testButtonText}>테스트 실행</Text>
+          </TouchableOpacity>
+
+          {/* 사용 방법 카드 */}
+          <View style={styles.guideCard}>
+            <Text style={styles.guideTitle}>💡 사용 방법</Text>
+            <View style={styles.guideSteps}>
+              <View style={styles.guideStep}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>1</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  위치 추적 버튼을 눌러주세요
+                </Text>
+              </View>
+              <View style={styles.guideStep}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>2</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  테스트 실행으로 알림을 확인해보세요
+                </Text>
+              </View>
+              <View style={styles.guideStep}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>3</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  실시간 알림을 받게 됩니다
                 </Text>
               </View>
             </View>
           </View>
-        ) : (
-          <Text style={styles.placeholderText}>알림 없음</Text>
-        )}
 
-        <TouchableOpacity
-          style={[styles.button, styles.buttonSecondary]}
-          onPress={testDecision}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>🚌 테스트 실행</Text>
-        </TouchableOpacity>
+          {/* 에러 메시지 */}
+          {error && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* 하단 여백 */}
+          <View style={{ height: 40 }} />
+        </ScrollView>
       </View>
 
-      {/* 에러 메시지 */}
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
-
-      {/* 로딩 */}
+      {/* 로딩 오버레이 */}
       {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
-          <Text style={styles.loadingText}>처리 중...</Text>
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#4A90E2" />
+            <Text style={styles.loadingText}>처리 중...</Text>
+          </View>
         </View>
       )}
-
-      {/* 정보 */}
-      <View style={styles.section}>
-        <Text style={styles.infoTitle}>💡 사용 방법</Text>
-        <Text style={styles.infoText}>1. '위치 추적 시작' 버튼을 눌러주세요</Text>
-        <Text style={styles.infoText}>2. '테스트 실행'으로 알림을 확인해보세요</Text>
-        <Text style={styles.infoText}>
-          3. 실시간으로 "지금 뛰어야 해요!" 알림을 받게 됩니다
-        </Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -227,132 +369,322 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F7FA',
   },
-  header: {
-    padding: 24,
-    paddingTop: 60,
-    backgroundColor: '#4A90E2',
-    alignItems: 'center',
+  mapContainer: {
+    height: height * 0.45,
+    position: 'relative',
   },
-  title: {
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  header: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+  },
+  headerTitle: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginTop: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  trackingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  trackingButtonActive: {
+    backgroundColor: '#4A90E2',
+  },
+  trackingButtonIcon: {
+    fontSize: 28,
+  },
+  userMarker: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userMarkerInner: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#4A90E2',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  bottomSheet: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#E3F2FD',
+  scrollContent: {
+    flex: 1,
+    padding: 20,
   },
-  section: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+  decisionCard: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 3,
   },
-  sectionTitle: {
+  decisionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  decisionEmoji: {
+    fontSize: 36,
+    marginRight: 12,
+  },
+  decisionMessage: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  decisionDetail: {
+    fontSize: 15,
+    color: '#666666',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  urgencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urgencyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  urgencyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  infoCard: {
+    backgroundColor: '#F8FAFB',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E8ECEF',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
     color: '#333333',
   },
-  infoBox: {
-    backgroundColor: '#F0F4F8',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+  locationInfo: {
+    gap: 12,
   },
-  infoText: {
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  locationLabel: {
     fontSize: 14,
-    color: '#555555',
-    marginBottom: 4,
-    lineHeight: 20,
+    color: '#888888',
+    fontWeight: '500',
+  },
+  locationValue: {
+    fontSize: 16,
+    color: '#333333',
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00CC66',
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 13,
+    color: '#00CC66',
+    fontWeight: '600',
   },
   placeholderText: {
     fontSize: 14,
     color: '#999999',
     fontStyle: 'italic',
-    marginBottom: 12,
   },
-  button: {
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonPrimary: {
+  testButton: {
+    flexDirection: 'row',
     backgroundColor: '#4A90E2',
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  buttonSecondary: {
-    backgroundColor: '#50C878',
+  testButtonIcon: {
+    fontSize: 24,
+    marginRight: 8,
   },
-  buttonDanger: {
-    backgroundColor: '#FF6B6B',
-  },
-  buttonText: {
+  testButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
-  decisionBox: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+  guideCard: {
+    backgroundColor: '#FFF8E1',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD54F',
   },
-  decisionMessage: {
-    fontSize: 20,
+  guideTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#F57C00',
+    marginBottom: 16,
+  },
+  guideSteps: {
+    gap: 12,
+  },
+  guideStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FF9800',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 8,
   },
-  decisionDetail: {
+  stepText: {
+    flex: 1,
     fontSize: 14,
     color: '#666666',
-    marginBottom: 12,
+    lineHeight: 20,
   },
-  badgeContainer: {
+  errorCard: {
     flexDirection: 'row',
-    marginTop: 8,
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    backgroundColor: '#FFEBEE',
+    padding: 16,
     borderRadius: 12,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  errorBox: {
-    margin: 16,
-    padding: 12,
-    backgroundColor: '#FFE5E5',
-    borderRadius: 8,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FF4444',
+    borderColor: '#FF5252',
+    alignItems: 'center',
+  },
+  errorIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
   errorText: {
-    color: '#CC0000',
+    flex: 1,
+    color: '#D32F2F',
     fontSize: 14,
+    fontWeight: '500',
   },
-  loadingContainer: {
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
+  },
+  loadingBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   loadingText: {
-    marginTop: 8,
+    marginTop: 16,
     color: '#666666',
-  },
-  infoTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#4A90E2',
+    fontWeight: '500',
   },
 });
