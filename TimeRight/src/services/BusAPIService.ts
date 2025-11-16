@@ -6,20 +6,78 @@ const BUS_API_KEY = process.env.EXPO_PUBLIC_SEOUL_BUS_API_KEY || '';
 const BASE_URL = 'http://ws.bus.go.kr/api/rest';
 
 class BusAPIService {
-  private cache = new Map<string, { data: BusArrival[]; timestamp: number }>();
-  private readonly CACHE_TTL = 30000; // 30초 캐시
+  private cache = new Map<string, { data: BusArrival[]; timestamp: number; isStale: boolean }>();
+  private readonly CACHE_TTL = 30000; // 30초 캐시 (신선)
+  private readonly STALE_TTL = 120000; // 2분 (오래됨, 하지만 사용 가능)
+  private revalidatingKeys = new Set<string>(); // 현재 갱신 중인 키들
 
   /**
-   * 정류장별 버스 도착 정보 조회
+   * 정류장별 버스 도착 정보 조회 (Stale-While-Revalidate 패턴)
+   * - 캐시가 신선하면: 즉시 반환
+   * - 캐시가 오래되었지만 유효하면: 즉시 반환하고 백그라운드에서 갱신
+   * - 캐시가 없거나 너무 오래되면: API 호출 후 반환
    */
   async getArrivalInfo(stopId: string): Promise<BusArrival[]> {
-    // 캐시 확인
     const cached = this.cache.get(stopId);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log('[BusAPI] Cache hit for', stopId);
+    const now = Date.now();
+
+    // 1. 캐시가 신선한 경우: 즉시 반환
+    if (cached && (now - cached.timestamp) < this.CACHE_TTL && !cached.isStale) {
+      console.log('[BusAPI] Fresh cache hit for', stopId);
       return cached.data;
     }
 
+    // 2. 캐시가 오래되었지만 아직 유효한 경우: stale-while-revalidate
+    if (cached && (now - cached.timestamp) < this.STALE_TTL) {
+      console.log('[BusAPI] Stale cache hit for', stopId, '- returning stale data and revalidating');
+
+      // 이미 갱신 중이 아니라면 백그라운드에서 갱신
+      if (!this.revalidatingKeys.has(stopId)) {
+        this.revalidateInBackground(stopId);
+      }
+
+      return cached.data;
+    }
+
+    // 3. 캐시가 없거나 너무 오래된 경우: API 호출
+    console.log('[BusAPI] Cache miss or expired for', stopId, '- fetching fresh data');
+    return this.fetchFreshData(stopId);
+  }
+
+  /**
+   * 백그라운드에서 캐시 갱신 (사용자는 대기하지 않음)
+   */
+  private async revalidateInBackground(stopId: string): Promise<void> {
+    this.revalidatingKeys.add(stopId);
+
+    try {
+      const freshData = await this.fetchFreshData(stopId);
+
+      // 캐시 업데이트 (isStale 플래그 false)
+      this.cache.set(stopId, {
+        data: freshData,
+        timestamp: Date.now(),
+        isStale: false,
+      });
+
+      console.log('[BusAPI] Background revalidation completed for', stopId);
+    } catch (error) {
+      console.error('[BusAPI] Background revalidation failed for', stopId, error);
+
+      // 실패 시 기존 캐시를 stale로 표시
+      const cached = this.cache.get(stopId);
+      if (cached) {
+        cached.isStale = true;
+      }
+    } finally {
+      this.revalidatingKeys.delete(stopId);
+    }
+  }
+
+  /**
+   * 새 데이터 가져오기 (실제 API 호출)
+   */
+  private async fetchFreshData(stopId: string): Promise<BusArrival[]> {
     try {
       const url = `${BASE_URL}/arrive/getArrInfoByRouteAll`;
       const response = await axios.get(url, {
@@ -41,19 +99,23 @@ class BusAPIService {
       this.cache.set(stopId, {
         data: arrivals,
         timestamp: Date.now(),
+        isStale: false,
       });
 
       return arrivals;
     } catch (error) {
-      console.error('[BusAPI] Error:', error);
+      console.error('[BusAPI] Error fetching fresh data:', error);
 
       // 캐시가 있으면 오래된 데이터라도 반환
+      const cached = this.cache.get(stopId);
       if (cached) {
-        console.warn('[BusAPI] Using stale cache');
+        console.warn('[BusAPI] Using stale cache due to error');
+        cached.isStale = true;
         return cached.data;
       }
 
       // Mock 데이터 반환 (개발용)
+      console.warn('[BusAPI] Using mock data');
       return this.getMockData();
     }
   }

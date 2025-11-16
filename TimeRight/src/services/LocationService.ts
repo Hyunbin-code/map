@@ -1,10 +1,12 @@
 import * as ExpoLocation from 'expo-location';
 import { Location, GPSMode } from '../types';
+import BatteryOptimizer from './BatteryOptimizer';
 
 class LocationService {
   private watchId: ExpoLocation.LocationSubscription | null = null;
   private currentLocation: Location | null = null;
   private currentMode: GPSMode = GPSMode.STOPPED;
+  private isBatteryOptimizationEnabled: boolean = true;
 
   /**
    * 위치 권한 요청
@@ -53,19 +55,61 @@ class LocationService {
 
   /**
    * GPS 추적 시작
+   * @param callback 위치 업데이트 콜백
+   * @param enableBatteryOptimization 배터리 최적화 활성화 여부 (기본: true)
    */
-  async startTracking(callback: (location: Location) => void): Promise<void> {
+  async startTracking(
+    callback: (location: Location) => void,
+    enableBatteryOptimization: boolean = true
+  ): Promise<void> {
     try {
       const hasPermission = await this.requestPermission();
       if (!hasPermission) {
         throw new Error('Location permission denied');
       }
 
+      this.isBatteryOptimizationEnabled = enableBatteryOptimization;
+
+      // 배터리 최적화 초기화
+      if (enableBatteryOptimization) {
+        await BatteryOptimizer.initialize();
+
+        // 배터리가 부족한지 확인
+        if (!BatteryOptimizer.isBatterySufficient()) {
+          console.warn('[LocationService] Battery level too low (<10%), but starting tracking anyway');
+        }
+      }
+
+      // 최적화된 설정 가져오기
+      const accuracy = enableBatteryOptimization
+        ? BatteryOptimizer.getOptimalAccuracy()
+        : ExpoLocation.Accuracy.High;
+
+      const timeInterval = enableBatteryOptimization
+        ? BatteryOptimizer.getOptimalTimeInterval()
+        : 5000;
+
+      const distanceInterval = enableBatteryOptimization
+        ? BatteryOptimizer.getOptimalDistanceInterval()
+        : 10;
+
+      console.log('[LocationService] Starting tracking with settings:', {
+        accuracy: this.getAccuracyString(accuracy),
+        timeInterval,
+        distanceInterval,
+        batteryOptimization: enableBatteryOptimization,
+      });
+
+      if (enableBatteryOptimization) {
+        const summary = BatteryOptimizer.getOptimizationSummary();
+        console.log('[LocationService] Battery optimization:', summary);
+      }
+
       this.watchId = await ExpoLocation.watchPositionAsync(
         {
-          accuracy: ExpoLocation.Accuracy.High,
-          distanceInterval: 10, // 10m 이동마다 업데이트
-          timeInterval: 5000, // 5초마다 체크
+          accuracy,
+          distanceInterval,
+          timeInterval,
         },
         (position) => {
           const location: Location = {
@@ -85,9 +129,9 @@ class LocationService {
         }
       );
 
-      console.log('GPS tracking started');
+      console.log('[LocationService] GPS tracking started');
     } catch (error) {
-      console.error('Error starting tracking:', error);
+      console.error('[LocationService] Error starting tracking:', error);
       throw error;
     }
   }
@@ -160,6 +204,55 @@ class LocationService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // 미터 단위
+  }
+
+  /**
+   * GPS 정확도를 문자열로 변환
+   */
+  private getAccuracyString(accuracy: ExpoLocation.Accuracy): string {
+    switch (accuracy) {
+      case ExpoLocation.Accuracy.Lowest:
+        return 'Lowest';
+      case ExpoLocation.Accuracy.Low:
+        return 'Low';
+      case ExpoLocation.Accuracy.Balanced:
+        return 'Balanced';
+      case ExpoLocation.Accuracy.High:
+        return 'High';
+      case ExpoLocation.Accuracy.Highest:
+        return 'Highest';
+      case ExpoLocation.Accuracy.BestForNavigation:
+        return 'BestForNavigation';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  /**
+   * 배터리 최적화 활성화 여부
+   */
+  isBatteryOptimizationActive(): boolean {
+    return this.isBatteryOptimizationEnabled;
+  }
+
+  /**
+   * 현재 배터리 최적화 상태 가져오기
+   */
+  getBatteryOptimizationStatus(): {
+    enabled: boolean;
+    batteryLevel?: string;
+    accuracy?: string;
+    timeInterval?: number;
+    distanceInterval?: number;
+  } {
+    if (!this.isBatteryOptimizationEnabled) {
+      return { enabled: false };
+    }
+
+    return {
+      enabled: true,
+      ...BatteryOptimizer.getOptimizationSummary(),
+    };
   }
 }
 

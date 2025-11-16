@@ -76,7 +76,7 @@ class NavigationService {
     }
 
     try {
-      // 1. 현재 위치 가져오기 (Zustand store에서)
+      // 1. 현재 위치 가져오기
       const userLocation = this.getUserLocation();
       if (!userLocation) {
         console.warn('[NavigationService] No user location');
@@ -86,7 +86,10 @@ class NavigationService {
       // 2. 거리 계산
       const distance = this.calculateDistance(userLocation, this.targetStop.location);
 
-      // 3. 버스 도착 정보 가져오기
+      // 3. 거리 기반 체크 간격 동적 조정
+      this.adjustCheckIntervalByDistance(distance);
+
+      // 4. 버스 도착 정보 가져오기
       const busArrivals = await BusAPIService.getArrivalInfo(this.targetStop.id);
       if (!busArrivals || busArrivals.length === 0) {
         console.warn('[NavigationService] No bus arrivals available');
@@ -96,26 +99,26 @@ class NavigationService {
       const nextBus = busArrivals[0]; // 가장 빨리 오는 버스
       const busArrivalSeconds = nextBus.arrivalTimeMinutes1 * 60;
 
-      // 4. 신호등 대기 시간 (현재는 mock)
+      // 5. 신호등 대기 시간 (현재는 mock)
       const signalWaitTimes = this.estimateSignalWaitTimes(distance);
 
-      // 5. 결정 엔진 실행
+      // 6. 결정 엔진 실행
       const decision = DecisionEngine.decide({
         distance,
         busArrivalTime: busArrivalSeconds,
         signalWaitTimes,
       });
 
-      // 6. 알림 전송
+      // 7. 알림 전송
       await NotificationService.send(decision);
 
-      // 7. 콜백 호출
+      // 8. 콜백 호출
       if (this.onDecisionUpdate) {
         this.onDecisionUpdate(decision);
       }
 
       console.log(
-        `[NavigationService] Decision: ${decision.action}, Distance: ${distance.toFixed(0)}m, Bus: ${nextBus.arrivalTimeMinutes1}min`
+        `[NavigationService] Decision: ${decision.action}, Distance: ${distance.toFixed(0)}m, Bus: ${nextBus.arrivalTimeMinutes1}min, Interval: ${this.checkInterval}ms`
       );
     } catch (error) {
       console.error('[NavigationService] Error in checkAndNotify:', error);
@@ -166,6 +169,42 @@ class NavigationService {
     }
 
     return waitTimes;
+  }
+
+  /**
+   * 거리 기반 체크 간격 동적 조정
+   * - 거리 > 1km: 30초 간격 (네트워크 절약)
+   * - 거리 500m-1km: 15초 간격
+   * - 거리 200m-500m: 10초 간격
+   * - 거리 < 200m: 5초 간격 (정확도 우선)
+   */
+  private adjustCheckIntervalByDistance(distance: number): void {
+    let optimalInterval: number;
+
+    if (distance > 1000) {
+      optimalInterval = 30000; // 30초
+    } else if (distance > 500) {
+      optimalInterval = 15000; // 15초
+    } else if (distance > 200) {
+      optimalInterval = 10000; // 10초
+    } else {
+      optimalInterval = 5000; // 5초
+    }
+
+    // 간격이 변경되었을 때만 재시작
+    if (optimalInterval !== this.checkInterval) {
+      console.log(`[NavigationService] Adjusting check interval: ${this.checkInterval}ms → ${optimalInterval}ms (distance: ${distance.toFixed(0)}m)`);
+
+      this.checkInterval = optimalInterval;
+
+      // 타이머 재시작 (다음 체크부터 새 간격 적용)
+      if (this.intervalId && this.isActive) {
+        clearInterval(this.intervalId);
+        this.intervalId = setInterval(() => {
+          this.checkAndNotify();
+        }, this.checkInterval) as unknown as number;
+      }
+    }
   }
 
   /**
