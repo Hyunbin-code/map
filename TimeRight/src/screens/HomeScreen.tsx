@@ -8,12 +8,17 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import { useStore } from '../stores/useStore';
 import LocationService from '../services/LocationService';
 import BusAPIService from '../services/BusAPIService';
 import DecisionEngine from '../services/DecisionEngine';
+import NavigationService from '../services/NavigationService';
+import { MOCK_BUS_STOPS, findNearbyStops } from '../data/busStops';
+import { Stop } from '../types';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +26,8 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [showStopSelector, setShowStopSelector] = useState(false);
+  const [nearbyStops, setNearbyStops] = useState<Stop[]>([]);
 
   const {
     userLocation,
@@ -29,6 +36,10 @@ export default function HomeScreen() {
     setCurrentDecision,
     isTracking,
     setIsTracking,
+    targetStop,
+    setTargetStop,
+    isNavigating,
+    setIsNavigating,
   } = useStore();
 
   // 펄스 애니메이션 (위치 마커)
@@ -50,6 +61,18 @@ export default function HomeScreen() {
       ).start();
     }
   }, [isTracking]);
+
+  // 근처 정류장 업데이트
+  useEffect(() => {
+    if (userLocation) {
+      const nearby = findNearbyStops(
+        userLocation.latitude,
+        userLocation.longitude,
+        1000 // 1km 반경
+      );
+      setNearbyStops(nearby);
+    }
+  }, [userLocation]);
 
   // 위치 추적 시작
   const startTracking = async () => {
@@ -74,6 +97,47 @@ export default function HomeScreen() {
   const stopTracking = () => {
     LocationService.stopTracking();
     setIsTracking(false);
+  };
+
+  // 정류장 선택
+  const selectStop = (stop: Stop) => {
+    setTargetStop(stop);
+    setShowStopSelector(false);
+    // 자동으로 네비게이션 시작할지 물어보거나 바로 시작
+    startNavigation(stop);
+  };
+
+  // 네비게이션 시작
+  const startNavigation = async (stop: Stop) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // 위치 추적이 안 되고 있으면 시작
+      if (!isTracking) {
+        await startTracking();
+      }
+
+      // NavigationService 시작
+      await NavigationService.start(stop, (decision) => {
+        setCurrentDecision(decision);
+      });
+
+      setIsNavigating(true);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error starting navigation:', err);
+      setError('네비게이션 시작 중 오류가 발생했습니다');
+      setIsLoading(false);
+    }
+  };
+
+  // 네비게이션 중지
+  const stopNavigation = () => {
+    NavigationService.stop();
+    setIsNavigating(false);
+    setCurrentDecision(null);
+    setTargetStop(null);
   };
 
   // 테스트: 버스 도착 정보 조회 및 결정
@@ -115,15 +179,33 @@ export default function HomeScreen() {
       if (isTracking) {
         LocationService.stopTracking();
       }
+      if (isNavigating) {
+        NavigationService.stop();
+      }
     };
-  }, [isTracking]);
+  }, [isTracking, isNavigating]);
 
-  // 기본 지도 위치 (서울 시청)
+  // 기본 지도 위치
   const defaultRegion = {
     latitude: userLocation?.latitude || 37.5665,
     longitude: userLocation?.longitude || 126.9780,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
+  };
+
+  // 정류장까지 거리 계산
+  const getDistanceToStop = (stop: Stop): number => {
+    if (!userLocation) return 0;
+    const R = 6371e3;
+    const φ1 = (userLocation.latitude * Math.PI) / 180;
+    const φ2 = (stop.location.latitude * Math.PI) / 180;
+    const Δφ = ((stop.location.latitude - userLocation.latitude) * Math.PI) / 180;
+    const Δλ = ((stop.location.longitude - userLocation.longitude) * Math.PI) / 180;
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
   return (
@@ -171,6 +253,18 @@ export default function HomeScreen() {
               />
             </>
           )}
+
+          {/* 목표 정류장 마커 */}
+          {targetStop && (
+            <Marker
+              coordinate={{
+                latitude: targetStop.location.latitude,
+                longitude: targetStop.location.longitude,
+              }}
+              title={targetStop.name}
+              pinColor="#FF4444"
+            />
+          )}
         </MapView>
 
         {/* 상단 그라데이션 오버레이 */}
@@ -205,6 +299,47 @@ export default function HomeScreen() {
           style={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* 목표 정류장 카드 */}
+          <View style={styles.infoCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>🚏</Text>
+              <Text style={styles.cardTitle}>목표 정류장</Text>
+            </View>
+
+            {targetStop ? (
+              <View style={styles.targetStopInfo}>
+                <Text style={styles.targetStopName}>{targetStop.name}</Text>
+                <Text style={styles.targetStopDistance}>
+                  {getDistanceToStop(targetStop).toFixed(0)}m
+                </Text>
+                {isNavigating ? (
+                  <TouchableOpacity
+                    style={styles.stopNavButton}
+                    onPress={stopNavigation}
+                  >
+                    <Text style={styles.stopNavButtonText}>네비게이션 중지</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.startNavButton}
+                    onPress={() => startNavigation(targetStop)}
+                  >
+                    <Text style={styles.startNavButtonText}>네비게이션 시작</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.selectStopButton}
+                onPress={() => setShowStopSelector(true)}
+              >
+                <Text style={styles.selectStopButtonText}>
+                  정류장 선택하기
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* 실시간 알림 카드 */}
           {currentDecision && (
             <View
@@ -257,13 +392,13 @@ export default function HomeScreen() {
           )}
 
           {/* 위치 정보 카드 */}
-          <View style={styles.infoCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardIcon}>📍</Text>
-              <Text style={styles.cardTitle}>현재 위치</Text>
-            </View>
+          {isTracking && userLocation && (
+            <View style={styles.infoCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardIcon}>📍</Text>
+                <Text style={styles.cardTitle}>현재 위치</Text>
+              </View>
 
-            {userLocation ? (
               <View style={styles.locationInfo}>
                 <View style={styles.locationRow}>
                   <Text style={styles.locationLabel}>위도</Text>
@@ -290,12 +425,8 @@ export default function HomeScreen() {
                   <Text style={styles.statusText}>실시간 추적 중</Text>
                 </View>
               </View>
-            ) : (
-              <Text style={styles.placeholderText}>
-                위치 추적을 시작하세요
-              </Text>
-            )}
-          </View>
+            </View>
+          )}
 
           {/* 테스트 버튼 */}
           <TouchableOpacity
@@ -324,7 +455,7 @@ export default function HomeScreen() {
                   <Text style={styles.stepNumberText}>2</Text>
                 </View>
                 <Text style={styles.stepText}>
-                  테스트 실행으로 알림을 확인해보세요
+                  목표 정류장을 선택하세요
                 </Text>
               </View>
               <View style={styles.guideStep}>
@@ -332,7 +463,7 @@ export default function HomeScreen() {
                   <Text style={styles.stepNumberText}>3</Text>
                 </View>
                 <Text style={styles.stepText}>
-                  실시간 알림을 받게 됩니다
+                  네비게이션 시작 후 실시간 알림을 받으세요
                 </Text>
               </View>
             </View>
@@ -350,6 +481,49 @@ export default function HomeScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
+
+      {/* 정류장 선택 모달 */}
+      <Modal
+        visible={showStopSelector}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowStopSelector(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>정류장 선택</Text>
+              <TouchableOpacity onPress={() => setShowStopSelector(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={nearbyStops.length > 0 ? nearbyStops : MOCK_BUS_STOPS}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.stopItem}
+                  onPress={() => selectStop(item)}
+                >
+                  <View>
+                    <Text style={styles.stopName}>{item.name}</Text>
+                    {userLocation && (
+                      <Text style={styles.stopDistance}>
+                        {getDistanceToStop(item).toFixed(0)}m
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.stopArrow}>›</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>주변에 정류장이 없습니다</Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* 로딩 오버레이 */}
       {isLoading && (
@@ -471,6 +645,75 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+  infoCard: {
+    backgroundColor: '#F8FAFB',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E8ECEF',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  targetStopInfo: {
+    gap: 12,
+  },
+  targetStopName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  targetStopDistance: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  selectStopButton: {
+    backgroundColor: '#4A90E2',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  selectStopButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  startNavButton: {
+    backgroundColor: '#00CC66',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  startNavButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  stopNavButton: {
+    backgroundColor: '#FF4444',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  stopNavButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   decisionCard: {
     padding: 20,
     borderRadius: 16,
@@ -517,28 +760,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666666',
   },
-  infoCard: {
-    backgroundColor: '#F8FAFB',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E8ECEF',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardIcon: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-  },
   locationInfo: {
     gap: 12,
   },
@@ -574,11 +795,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#00CC66',
     fontWeight: '600',
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#999999',
-    fontStyle: 'italic',
   },
   testButton: {
     flexDirection: 'row',
@@ -686,5 +902,62 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 16,
     fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.7,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  modalClose: {
+    fontSize: 28,
+    color: '#666666',
+  },
+  stopItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  stopName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 4,
+  },
+  stopDistance: {
+    fontSize: 13,
+    color: '#888888',
+  },
+  stopArrow: {
+    fontSize: 24,
+    color: '#CCCCCC',
+  },
+  emptyText: {
+    textAlign: 'center',
+    padding: 40,
+    color: '#999999',
+    fontSize: 14,
   },
 });

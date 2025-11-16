@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import { Location, Route, Decision, BusArrival, SubwayArrival } from '../types';
+import { Location, Route, Decision, BusArrival, SubwayArrival, Stop } from '../types';
 
 interface AppState {
   // 사용자 상태
   userLocation: Location | null;
   route: Route | null;
   isTracking: boolean;
+  targetStop: Stop | null;
+  isNavigating: boolean;
 
   // 대중교통 정보
   busArrivals: Record<string, BusArrival[]>;
@@ -20,6 +22,8 @@ interface AppState {
   setUserLocation: (location: Location) => void;
   setRoute: (route: Route | null) => void;
   setIsTracking: (tracking: boolean) => void;
+  setTargetStop: (stop: Stop | null) => void;
+  setIsNavigating: (navigating: boolean) => void;
   setBusArrivals: (stopId: string, arrivals: BusArrival[]) => void;
   setSubwayArrivals: (stationName: string, arrivals: SubwayArrival[]) => void;
   setCurrentDecision: (decision: Decision | null) => void;
@@ -32,6 +36,8 @@ export const useStore = create<AppState>((set) => ({
   userLocation: null,
   route: null,
   isTracking: false,
+  targetStop: null,
+  isNavigating: false,
   busArrivals: {},
   subwayArrivals: {},
   currentDecision: null,
@@ -44,6 +50,10 @@ export const useStore = create<AppState>((set) => ({
   setRoute: (route) => set({ route }),
 
   setIsTracking: (tracking) => set({ isTracking: tracking }),
+
+  setTargetStop: (stop) => set({ targetStop: stop }),
+
+  setIsNavigating: (navigating) => set({ isNavigating: navigating }),
 
   setBusArrivals: (stopId, arrivals) =>
     set((state) => ({
