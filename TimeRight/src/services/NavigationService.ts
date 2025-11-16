@@ -6,15 +6,20 @@ import NotificationService from './NotificationService';
 class NavigationService {
   private isActive: boolean = false;
   private targetStop: Stop | null = null;
-  private intervalId: NodeJS.Timeout | null = null;
+  private intervalId: number | null = null;
   private checkInterval: number = 5000; // 5초마다 체크
   private onDecisionUpdate: ((decision: Decision) => void) | null = null;
+  private getUserLocationCallback: (() => Location | null) | null = null;
 
   /**
    * 네비게이션 시작
+   * @param targetStop 목표 정류장
+   * @param getUserLocation 사용자 위치를 가져오는 콜백 함수
+   * @param onDecisionUpdate 결정 업데이트 콜백 함수
    */
   async start(
     targetStop: Stop,
+    getUserLocation: () => Location | null,
     onDecisionUpdate?: (decision: Decision) => void
   ): Promise<void> {
     if (this.isActive) {
@@ -24,12 +29,16 @@ class NavigationService {
 
     this.targetStop = targetStop;
     this.isActive = true;
+    this.getUserLocationCallback = getUserLocation;
     this.onDecisionUpdate = onDecisionUpdate || null;
 
     console.log('[NavigationService] Started for stop:', targetStop.name);
 
-    // 알림 초기화
-    await NotificationService.initialize();
+    // 알림 초기화 및 권한 요청
+    const hasPermission = await NotificationService.initialize();
+    if (!hasPermission) {
+      console.warn('[NavigationService] Notification permission not granted, notifications will be disabled');
+    }
 
     // 즉시 한 번 실행
     await this.checkAndNotify();
@@ -37,7 +46,7 @@ class NavigationService {
     // 주기적 체크 시작
     this.intervalId = setInterval(() => {
       this.checkAndNotify();
-    }, this.checkInterval);
+    }, this.checkInterval) as unknown as number;
   }
 
   /**
@@ -47,6 +56,7 @@ class NavigationService {
     this.isActive = false;
     this.targetStop = null;
     this.onDecisionUpdate = null;
+    this.getUserLocationCallback = null;
 
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -113,18 +123,14 @@ class NavigationService {
   }
 
   /**
-   * 사용자 위치 가져오기 (Zustand store에서)
+   * 사용자 위치 가져오기 (콜백 사용)
    */
   private getUserLocation(): Location | null {
-    // 실제 앱에서는 Zustand store에서 가져오지만,
-    // 여기서는 import 순환 참조를 피하기 위해 global에서 가져옴
-    try {
-      const { useStore } = require('../stores/useStore');
-      return useStore.getState().userLocation;
-    } catch (error) {
-      console.error('[NavigationService] Failed to get user location:', error);
+    if (!this.getUserLocationCallback) {
+      console.error('[NavigationService] getUserLocation callback not set');
       return null;
     }
+    return this.getUserLocationCallback();
   }
 
   /**
@@ -169,9 +175,12 @@ class NavigationService {
     this.checkInterval = intervalMs;
 
     // 이미 실행 중이면 재시작
-    if (this.isActive && this.intervalId && this.targetStop) {
+    if (this.isActive && this.intervalId && this.targetStop && this.getUserLocationCallback) {
+      const targetStop = this.targetStop;
+      const getUserLocation = this.getUserLocationCallback;
+      const onDecisionUpdate = this.onDecisionUpdate;
       this.stop();
-      this.start(this.targetStop, this.onDecisionUpdate || undefined);
+      this.start(targetStop, getUserLocation, onDecisionUpdate || undefined);
     }
   }
 

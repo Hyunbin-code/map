@@ -118,10 +118,14 @@ export default function HomeScreen() {
         await startTracking();
       }
 
-      // NavigationService 시작
-      await NavigationService.start(stop, (decision) => {
-        setCurrentDecision(decision);
-      });
+      // NavigationService 시작 (콜백으로 userLocation 전달)
+      await NavigationService.start(
+        stop,
+        () => userLocation, // getUserLocation 콜백
+        (decision) => {
+          setCurrentDecision(decision);
+        }
+      );
 
       setIsNavigating(true);
       setIsLoading(false);
@@ -174,16 +178,14 @@ export default function HomeScreen() {
     }
   };
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (isTracking) {
-        LocationService.stopTracking();
-      }
-      if (isNavigating) {
-        NavigationService.stop();
-      }
+      // 컴포넌트 언마운트 시 리소스 정리
+      LocationService.stopTracking();
+      NavigationService.stop();
     };
-  }, [isTracking, isNavigating]);
+  }, []); // 빈 의존성 배열: 마운트 시 한 번만 실행
 
   // 기본 지도 위치
   const defaultRegion = {

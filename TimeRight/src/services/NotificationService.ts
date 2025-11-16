@@ -14,8 +14,13 @@ Notifications.setNotificationHandler({
 class NotificationService {
   private lastNotification: (Decision & { timestamp: number }) | null = null;
   private notificationChannel: string = 'timeright-channel';
+  private isPermissionGranted: boolean = false;
 
-  async initialize(): Promise<void> {
+  /**
+   * 알림 서비스 초기화 및 권한 요청
+   * @returns 권한이 부여되었는지 여부
+   */
+  async initialize(): Promise<boolean> {
     try {
       // 권한 요청
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -28,8 +33,11 @@ class NotificationService {
 
       if (finalStatus !== 'granted') {
         console.warn('[NotificationService] Permission not granted');
-        return;
+        this.isPermissionGranted = false;
+        return false;
       }
+
+      this.isPermissionGranted = true;
 
       // Android 채널 설정
       if (Platform.OS === 'android') {
@@ -44,13 +52,29 @@ class NotificationService {
       }
 
       console.log('[NotificationService] Initialized successfully');
+      return true;
     } catch (error) {
       console.error('[NotificationService] Initialization error:', error);
+      this.isPermissionGranted = false;
+      return false;
     }
+  }
+
+  /**
+   * 알림 권한 여부 확인
+   */
+  hasPermission(): boolean {
+    return this.isPermissionGranted;
   }
 
   async send(decision: Decision): Promise<void> {
     try {
+      // 권한 확인
+      if (!this.isPermissionGranted) {
+        console.warn('[NotificationService] Permission not granted, skipping notification');
+        return;
+      }
+
       // 중복 방지
       if (this.isDuplicate(decision)) {
         console.log('[NotificationService] Duplicate notification prevented');
