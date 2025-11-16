@@ -76,10 +76,7 @@ export const useStore = create<AppState>((set) => ({
   addNotification: (notification) =>
     set((state) => ({
       lastNotification: notification,
-      notificationHistory: [
-        ...state.notificationHistory,
-        notification,
-      ].slice(-50), // 최근 50개만 보관
+      notificationHistory: [...state.notificationHistory, notification].slice(-50), // 최근 50개만 보관
     })),
 
   clearNotifications: () =>

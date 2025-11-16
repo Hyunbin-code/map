@@ -164,12 +164,7 @@ describe('busStops data', () => {
 });
 
 // Helper function to calculate distance (same as in busStops.ts)
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // 지구 반지름 (m)
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;

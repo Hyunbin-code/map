@@ -190,7 +190,7 @@ export default function HomeScreen() {
   // 기본 지도 위치
   const defaultRegion = {
     latitude: userLocation?.latitude || 37.5665,
-    longitude: userLocation?.longitude || 126.9780,
+    longitude: userLocation?.longitude || 126.978,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   };
@@ -232,12 +232,7 @@ export default function HomeScreen() {
                   longitude: userLocation.longitude,
                 }}
               >
-                <Animated.View
-                  style={[
-                    styles.userMarker,
-                    { transform: [{ scale: pulseAnim }] },
-                  ]}
-                >
+                <Animated.View style={[styles.userMarker, { transform: [{ scale: pulseAnim }] }]}>
                   <View style={styles.userMarkerInner} />
                 </Animated.View>
               </Marker>
@@ -280,16 +275,11 @@ export default function HomeScreen() {
 
         {/* 위치 추적 버튼 (플로팅) */}
         <TouchableOpacity
-          style={[
-            styles.trackingButton,
-            isTracking && styles.trackingButtonActive,
-          ]}
+          style={[styles.trackingButton, isTracking && styles.trackingButtonActive]}
           onPress={isTracking ? stopTracking : startTracking}
           disabled={isLoading}
         >
-          <Text style={styles.trackingButtonIcon}>
-            {isTracking ? '📍' : '📍'}
-          </Text>
+          <Text style={styles.trackingButtonIcon}>{isTracking ? '📍' : '📍'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -297,10 +287,7 @@ export default function HomeScreen() {
       <View style={styles.bottomSheet}>
         <View style={styles.handleBar} />
 
-        <ScrollView
-          style={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* 목표 정류장 카드 */}
           <View style={styles.infoCard}>
             <View style={styles.cardHeader}>
@@ -315,10 +302,7 @@ export default function HomeScreen() {
                   {getDistanceToStop(targetStop).toFixed(0)}m
                 </Text>
                 {isNavigating ? (
-                  <TouchableOpacity
-                    style={styles.stopNavButton}
-                    onPress={stopNavigation}
-                  >
+                  <TouchableOpacity style={styles.stopNavButton} onPress={stopNavigation}>
                     <Text style={styles.stopNavButtonText}>네비게이션 중지</Text>
                   </TouchableOpacity>
                 ) : (
@@ -335,9 +319,7 @@ export default function HomeScreen() {
                 style={styles.selectStopButton}
                 onPress={() => setShowStopSelector(true)}
               >
-                <Text style={styles.selectStopButtonText}>
-                  정류장 선택하기
-                </Text>
+                <Text style={styles.selectStopButtonText}>정류장 선택하기</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -356,38 +338,26 @@ export default function HomeScreen() {
                   {currentDecision.action === 'RUN'
                     ? '🏃'
                     : currentDecision.action === 'WALK_FAST'
-                    ? '🚶'
-                    : '✅'}
+                      ? '🚶'
+                      : '✅'}
                 </Text>
-                <Text
-                  style={[
-                    styles.decisionMessage,
-                    { color: currentDecision.color },
-                  ]}
-                >
+                <Text style={[styles.decisionMessage, { color: currentDecision.color }]}>
                   {currentDecision.message}
                 </Text>
               </View>
               {currentDecision.detail && (
-                <Text style={styles.decisionDetail}>
-                  {currentDecision.detail}
-                </Text>
+                <Text style={styles.decisionDetail}>{currentDecision.detail}</Text>
               )}
               <View style={styles.urgencyBadge}>
-                <View
-                  style={[
-                    styles.urgencyDot,
-                    { backgroundColor: currentDecision.color },
-                  ]}
-                />
+                <View style={[styles.urgencyDot, { backgroundColor: currentDecision.color }]} />
                 <Text style={styles.urgencyText}>
                   {currentDecision.urgency === 'HIGH'
                     ? '긴급'
                     : currentDecision.urgency === 'MEDIUM'
-                    ? '주의'
-                    : currentDecision.urgency === 'LOW'
-                    ? '여유'
-                    : '정보'}
+                      ? '주의'
+                      : currentDecision.urgency === 'LOW'
+                        ? '여유'
+                        : '정보'}
                 </Text>
               </View>
             </View>
@@ -404,22 +374,16 @@ export default function HomeScreen() {
               <View style={styles.locationInfo}>
                 <View style={styles.locationRow}>
                   <Text style={styles.locationLabel}>위도</Text>
-                  <Text style={styles.locationValue}>
-                    {userLocation.latitude.toFixed(6)}°
-                  </Text>
+                  <Text style={styles.locationValue}>{userLocation.latitude.toFixed(6)}°</Text>
                 </View>
                 <View style={styles.locationRow}>
                   <Text style={styles.locationLabel}>경도</Text>
-                  <Text style={styles.locationValue}>
-                    {userLocation.longitude.toFixed(6)}°
-                  </Text>
+                  <Text style={styles.locationValue}>{userLocation.longitude.toFixed(6)}°</Text>
                 </View>
                 {userLocation.accuracy && (
                   <View style={styles.locationRow}>
                     <Text style={styles.locationLabel}>정확도</Text>
-                    <Text style={styles.locationValue}>
-                      ±{userLocation.accuracy.toFixed(0)}m
-                    </Text>
+                    <Text style={styles.locationValue}>±{userLocation.accuracy.toFixed(0)}m</Text>
                   </View>
                 )}
                 <View style={styles.statusBadge}>
@@ -431,11 +395,7 @@ export default function HomeScreen() {
           )}
 
           {/* 테스트 버튼 */}
-          <TouchableOpacity
-            style={styles.testButton}
-            onPress={testDecision}
-            disabled={isLoading}
-          >
+          <TouchableOpacity style={styles.testButton} onPress={testDecision} disabled={isLoading}>
             <Text style={styles.testButtonIcon}>🚌</Text>
             <Text style={styles.testButtonText}>테스트 실행</Text>
           </TouchableOpacity>
@@ -448,25 +408,19 @@ export default function HomeScreen() {
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>1</Text>
                 </View>
-                <Text style={styles.stepText}>
-                  위치 추적 버튼을 눌러주세요
-                </Text>
+                <Text style={styles.stepText}>위치 추적 버튼을 눌러주세요</Text>
               </View>
               <View style={styles.guideStep}>
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>2</Text>
                 </View>
-                <Text style={styles.stepText}>
-                  목표 정류장을 선택하세요
-                </Text>
+                <Text style={styles.stepText}>목표 정류장을 선택하세요</Text>
               </View>
               <View style={styles.guideStep}>
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>3</Text>
                 </View>
-                <Text style={styles.stepText}>
-                  네비게이션 시작 후 실시간 알림을 받으세요
-                </Text>
+                <Text style={styles.stepText}>네비게이션 시작 후 실시간 알림을 받으세요</Text>
               </View>
             </View>
           </View>
@@ -504,24 +458,17 @@ export default function HomeScreen() {
               data={nearbyStops.length > 0 ? nearbyStops : MOCK_BUS_STOPS}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.stopItem}
-                  onPress={() => selectStop(item)}
-                >
+                <TouchableOpacity style={styles.stopItem} onPress={() => selectStop(item)}>
                   <View>
                     <Text style={styles.stopName}>{item.name}</Text>
                     {userLocation && (
-                      <Text style={styles.stopDistance}>
-                        {getDistanceToStop(item).toFixed(0)}m
-                      </Text>
+                      <Text style={styles.stopDistance}>{getDistanceToStop(item).toFixed(0)}m</Text>
                     )}
                   </View>
                   <Text style={styles.stopArrow}>›</Text>
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>주변에 정류장이 없습니다</Text>
-              }
+              ListEmptyComponent={<Text style={styles.emptyText}>주변에 정류장이 없습니다</Text>}
             />
           </View>
         </View>

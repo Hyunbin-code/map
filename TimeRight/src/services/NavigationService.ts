@@ -37,7 +37,9 @@ class NavigationService {
     // 알림 초기화 및 권한 요청
     const hasPermission = await NotificationService.initialize();
     if (!hasPermission) {
-      console.warn('[NavigationService] Notification permission not granted, notifications will be disabled');
+      console.warn(
+        '[NavigationService] Notification permission not granted, notifications will be disabled'
+      );
     }
 
     // 즉시 한 번 실행
@@ -193,7 +195,9 @@ class NavigationService {
 
     // 간격이 변경되었을 때만 재시작
     if (optimalInterval !== this.checkInterval) {
-      console.log(`[NavigationService] Adjusting check interval: ${this.checkInterval}ms → ${optimalInterval}ms (distance: ${distance.toFixed(0)}m)`);
+      console.log(
+        `[NavigationService] Adjusting check interval: ${this.checkInterval}ms → ${optimalInterval}ms (distance: ${distance.toFixed(0)}m)`
+      );
 
       this.checkInterval = optimalInterval;
 

@@ -22,14 +22,18 @@ class BusAPIService {
     const now = Date.now();
 
     // 1. 캐시가 신선한 경우: 즉시 반환
-    if (cached && (now - cached.timestamp) < this.CACHE_TTL && !cached.isStale) {
+    if (cached && now - cached.timestamp < this.CACHE_TTL && !cached.isStale) {
       console.log('[BusAPI] Fresh cache hit for', stopId);
       return cached.data;
     }
 
     // 2. 캐시가 오래되었지만 아직 유효한 경우: stale-while-revalidate
-    if (cached && (now - cached.timestamp) < this.STALE_TTL) {
-      console.log('[BusAPI] Stale cache hit for', stopId, '- returning stale data and revalidating');
+    if (cached && now - cached.timestamp < this.STALE_TTL) {
+      console.log(
+        '[BusAPI] Stale cache hit for',
+        stopId,
+        '- returning stale data and revalidating'
+      );
 
       // 이미 갱신 중이 아니라면 백그라운드에서 갱신
       if (!this.revalidatingKeys.has(stopId)) {

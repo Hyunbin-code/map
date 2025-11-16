@@ -76,7 +76,9 @@ class LocationService {
 
         // 배터리가 부족한지 확인
         if (!BatteryOptimizer.isBatterySufficient()) {
-          console.warn('[LocationService] Battery level too low (<10%), but starting tracking anyway');
+          console.warn(
+            '[LocationService] Battery level too low (<10%), but starting tracking anyway'
+          );
         }
       }
 

@@ -37,7 +37,7 @@ export const MOCK_BUS_STOPS: Stop[] = [
     type: 'BUS',
     name: '삼성역 (무역센터 앞)',
     location: {
-      latitude: 37.508800,
+      latitude: 37.5088,
       longitude: 127.063247,
     },
   },
@@ -56,7 +56,7 @@ export const MOCK_BUS_STOPS: Stop[] = [
     name: '홍대입구역 (2번출구)',
     location: {
       latitude: 37.557527,
-      longitude: 126.925320,
+      longitude: 126.92532,
     },
   },
   {
@@ -91,7 +91,7 @@ export const MOCK_BUS_STOPS: Stop[] = [
     type: 'BUS',
     name: '종각역 (YMCA 앞)',
     location: {
-      latitude: 37.569720,
+      latitude: 37.56972,
       longitude: 126.983189,
     },
   },
@@ -109,9 +109,7 @@ export function findStopById(id: string): Stop | undefined {
  */
 export function searchStopsByName(query: string): Stop[] {
   const lowerQuery = query.toLowerCase();
-  return MOCK_BUS_STOPS.filter((stop) =>
-    stop.name.toLowerCase().includes(lowerQuery)
-  );
+  return MOCK_BUS_STOPS.filter((stop) => stop.name.toLowerCase().includes(lowerQuery));
 }
 
 /**
@@ -150,12 +148,7 @@ export function findNearbyStops(
 /**
  * 거리 계산 (Haversine 공식)
  */
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // 지구 반지름 (m)
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;

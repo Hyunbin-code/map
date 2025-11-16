@@ -33,7 +33,10 @@ class BatteryOptimizer {
       // 배터리 레벨 변경 이벤트 구독
       Battery.addBatteryLevelListener(({ batteryLevel }) => {
         this.batteryLevel = batteryLevel;
-        console.log('[BatteryOptimizer] Battery level changed:', (batteryLevel * 100).toFixed(0) + '%');
+        console.log(
+          '[BatteryOptimizer] Battery level changed:',
+          (batteryLevel * 100).toFixed(0) + '%'
+        );
       });
 
       // 배터리 상태 변경 이벤트 구독
@@ -57,8 +60,10 @@ class BatteryOptimizer {
    */
   getOptimalAccuracy(): ExpoLocation.Accuracy {
     // 충전 중이면 항상 HIGH
-    if (this.batteryState === Battery.BatteryState.CHARGING ||
-        this.batteryState === Battery.BatteryState.FULL) {
+    if (
+      this.batteryState === Battery.BatteryState.CHARGING ||
+      this.batteryState === Battery.BatteryState.FULL
+    ) {
       return ExpoLocation.Accuracy.High;
     }
 
@@ -82,8 +87,10 @@ class BatteryOptimizer {
    */
   getOptimalTimeInterval(): number {
     // 충전 중이면 빠르게
-    if (this.batteryState === Battery.BatteryState.CHARGING ||
-        this.batteryState === Battery.BatteryState.FULL) {
+    if (
+      this.batteryState === Battery.BatteryState.CHARGING ||
+      this.batteryState === Battery.BatteryState.FULL
+    ) {
       return 3000; // 3초
     }
 
@@ -107,8 +114,10 @@ class BatteryOptimizer {
    */
   getOptimalDistanceInterval(): number {
     // 충전 중이면 정밀하게
-    if (this.batteryState === Battery.BatteryState.CHARGING ||
-        this.batteryState === Battery.BatteryState.FULL) {
+    if (
+      this.batteryState === Battery.BatteryState.CHARGING ||
+      this.batteryState === Battery.BatteryState.FULL
+    ) {
       return 5; // 5m
     }
 

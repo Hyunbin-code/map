@@ -87,9 +87,10 @@ class NotificationService {
           title: this.getTitle(decision),
           body: decision.detail || decision.message,
           sound: decision.vibrate ? 'default' : undefined,
-          priority: decision.urgency === 'HIGH'
-            ? Notifications.AndroidNotificationPriority.MAX
-            : Notifications.AndroidNotificationPriority.DEFAULT,
+          priority:
+            decision.urgency === 'HIGH'
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.DEFAULT,
           color: decision.color,
           vibrate: decision.vibrate ? [0, 250, 250, 250] : undefined,
         },
