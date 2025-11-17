@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeRight - 완전한 프로토타입</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        #root {
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .phone-frame {
+            background: white;
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            overflow: hidden;
+            position: relative;
+            height: 740px;
+        }
+        
+        /* Onboarding Styles */
+        .onboarding-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .onboarding-logo {
+            font-size: 80px;
+            margin-bottom: 24px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .onboarding-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        
+        .onboarding-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+        
+        .onboarding-button {
+            background: white;
+            color: #667eea;
+            padding: 16px 48px;
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        
+        .onboarding-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+        }
+        
+        .onboarding-button:active {
+            transform: translateY(-2px);
+        }
+        
+        /* Walk Test Screen */
+        .walk-test-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .test-header {
+            text-align: center;
+        }
+        
+        .test-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        
+        .test-instruction {
+            font-size: 16px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .countdown-container {
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .countdown-circle {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            border: 8px solid rgba(255,255,255,0.4);
+        }
+        
+        .countdown-number {
+            font-size: 96px;
+            font-weight: 800;
+        }
+        
+        .countdown-label {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+        
+        .start-button {
+            width: 100%;
+            background: white;
+            color: #f5576c;
+            padding: 20px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .start-button:hover {
+            transform: scale(1.02);
+        }
+        
+        .start-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Result Screen */
+        .result-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .result-header {
+            text-align: center;
+        }
+        
+        .result-emoji {
+            font-size: 80px;
+            margin-bottom: 16px;
+        }
+        
+        .result-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 40px;
+        }
+        
+        .result-card {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        
+        .speed-value {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        
+        .speed-label {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 24px;
+        }
+        
+        .speed-comparison {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .comparison-label {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: white;
+            transition: width 1s ease-out;
+        }
+        
+        .result-description {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        /* Map Screen - Kakao Style */
+        .map-fullscreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        }
+        
+        .map-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .route-animated {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .route-line {
+            stroke: #FEE500;
+            stroke-width: 5;
+            fill: none;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawRoute 2s ease-out forwards;
+        }
+        
+        @keyframes drawRoute {
+            to { stroke-dashoffset: 0; }
+        }
+        
+        .map-marker {
+            position: absolute;
+            font-size: 40px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            animation: markerDrop 0.6s ease-out;
+        }
+        
+        @keyframes markerDrop {
+            0% { transform: translateY(-50px); opacity: 0; }
+            60% { transform: translateY(5px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        .current-marker {
+            animation: currentPulse 2s infinite;
+        }
+        
+        @keyframes currentPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* Search Bar */
+        .search-bar-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 70%, transparent 100%);
+            z-index: 100;
+        }
+        
+        .search-bar {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .search-input-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 12px;
+        }
+        
+        .search-input-row:last-child {
+            border-bottom: none;
+        }
+        
+        .search-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            background: transparent;
+        }
+        
+        .search-input::placeholder {
+            color: #bbb;
+        }
+        
+        .swap-button {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.6;
+            transition: all 0.2s;
+        }
+        
+        .swap-button:hover {
+            opacity: 1;
+            transform: rotate(180deg);
+        }
+        
+        /* Bottom Sheet */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 50;
+            transition: transform 0.3s ease-out;
+        }
+        
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin: 12px auto;
+        }
+        
+        .sheet-content {
+            padding: 0 20px 20px;
+        }
+        
+        /* Route Info Card */
+        .route-info-card {
+            background: linear-gradient(135deg, #FEE500 0%, #FFD700 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .route-time {
+            font-size: 32px;
+            font-weight: 800;
+            color: #191919;
+            margin-bottom: 8px;
+        }
+        
+        .route-details {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #191919;
+            font-weight: 500;
+        }
+        
+        .action-button {
+            width: 100%;
+            padding: 16px;
+            background: #191919;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-button:hover {
+            background: #2a2a2a;
+            transform: translateY(-2px);
+        }
+        
+        .action-button:active {
+            transform: translateY(0);
+        }
+        
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Alert Banner */
+        .alert-banner {
+            position: absolute;
+            top: 100px;
+            left: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, #ff3d00 0%, #ff6b00 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(255, 61, 0, 0.3);
+            z-index: 90;
+            animation: slideDown 0.4s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .alert-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .alert-emoji {
+            font-size: 48px;
+            animation: shake 0.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        
+        .alert-text {
+            flex: 1;
+        }
+        
+        .alert-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        
+        .alert-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function TimeRightApp() {
+            const [screen, setScreen] = useState('welcome'); // welcome, walkTest, result, map
+            const [countdown, setCountdown] = useState(10);
+            const [isTesting, setIsTesting] = useState(false);
+            const [walkingSpeed, setWalkingSpeed] = useState(null);
+            const [origin, setOrigin] = useState('');
+            const [destination, setDestination] = useState('');
+            const [showAlert, setShowAlert] = useState(false);
+
+            // Walk test countdown
+            useEffect(() => {
+                if (isTesting && countdown > 0) {
+                    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+                    return () => clearTimeout(timer);
+                } else if (isTesting && countdown === 0) {
+                    // 측정 완료 - 시뮬레이션 데이터
+                    const randomSpeed = (Math.random() * 1.5 + 3.5).toFixed(1); // 3.5~5.0 km/h
+                    setWalkingSpeed(randomSpeed);
+                    setScreen('result');
+                    setIsTesting(false);
+                }
+            }, [isTesting, countdown]);
+
+            const startWalkTest = () => {
+                setScreen('walkTest');
+                setCountdown(10);
+                setIsTesting(true);
+            };
+
+            const swapLocations = () => {
+                const temp = origin;
+                setOrigin(destination);
+                setDestination(temp);
+            };
+
+            const handleRouteSearch = () => {
+                if (origin && destination) {
+                    // 시뮬레이션: 경로 검색 화면으로 이동
+                    setTimeout(() => {
+                        setShowAlert(true);
+                        setTimeout(() => setShowAlert(false), 5000);
+                    }, 2000);
+                }
+            };
+
+            // Welcome Screen
+            const WelcomeScreen = () => (
+                <div className="onboarding-screen">
+                    <div>
+                        <div className="onboarding-logo">🏃</div>
+                        <h1 className="onboarding-title">TimeRight</h1>
+                        <p className="onboarding-subtitle">
+                            당신의 걸음을 이해하고<br/>
+                            정확한 알림을 드립니다
+                        </p>
+                    </div>
+                    <button className="onboarding-button" onClick={startWalkTest}>
+                        시작하기
+                    </button>
+                </div>
+            );
+
+            // Walk Test Screen
+            const WalkTestScreen = () => (
+                <div className="walk-test-screen">
+                    <div className="test-header">
+                        <h2 className="test-title">10초 테스트</h2>
+                        <p className="test-instruction">
+                            평소처럼 편안하게 걸으면서<br/>
+                            직진해주세요
+                        </p>
+                    </div>
+                    <div className="countdown-container">
+                        <div className="countdown-circle">
+                            <div>
+                                <div className="countdown-number">{countdown}</div>
+                                <div className="countdown-label">초</div>
+                            </div>
+                        </div>
+                        <p style={{ fontSize: '16px', opacity: 0.9 }}>
+                            {isTesting ? '측정 중...' : '준비하세요'}
+                        </p>
+                    </div>
+                    <button 
+                        className="start-button" 
+                        onClick={startWalkTest}
+                        disabled={isTesting}
+                    >
+                        {isTesting ? '측정 중...' : '다시 시작'}
+                    </button>
+                </div>
+            );
+
+            // Result Screen
+            const ResultScreen = () => {
+                const speedPercent = ((parseFloat(walkingSpeed) - 3.5) / 1.5) * 100;
+                
+                return (
+                    <div className="result-screen">
+                        <div className="result-header">
+                            <div className="result-emoji">✅</div>
+                            <h2 className="result-title">측정 완료!</h2>
+                        </div>
+                        <div className="result-card">
+                            <div className="speed-value">{walkingSpeed} km/h</div>
+                            <div className="speed-label">평균 걷기 속도</div>
+                            <div className="speed-comparison">
+                                <span className="comparison-label">🐢 느림</span>
+                                <div className="progress-bar">
+                                    <div 
+                                        className="progress-fill" 
+                                        style={{ width: `${Math.min(Math.max(speedPercent, 0), 100)}%` }}
+                                    ></div>
+                                </div>
+                                <span className="comparison-label">빠름 🚀</span>
+                            </div>
+                            <p className="result-description">
+                                {speedPercent > 66 ? '평균보다 빠른 편이에요!' :
+                                 speedPercent > 33 ? '평균 속도입니다' :
+                                 '천천히 걷는 편이에요'}
+                            </p>
+                        </div>
+                        <button 
+                            className="start-button"
+                            onClick={() => setScreen('map')}
+                        >
+                            TimeRight 시작하기
+                        </button>
+                    </div>
+                );
+            };
+
+            // Map Screen
+            const MapScreen = () => (
+                <>
+                    <div className="map-fullscreen">
+                        <div className="map-grid"></div>
+                        {origin && destination && (
+                            <>
+                                <svg className="route-animated" viewBox="0 0 400 740">
+                                    <path 
+                                        className="route-line"
+                                        d="M 80 200 Q 200 300, 320 450" 
+                                    />
+                                </svg>
+                                <div className="map-marker current-marker" style={{ top: '180px', left: '50px' }}>
+                                    📍
+                                </div>
+                                <div className="map-marker" style={{ top: '430px', left: '290px' }}>
+                                    🎯
+                                </div>
+                            </>
+                        )}
+                        {(!origin || !destination) && (
+                            <div className="map-marker current-marker" 
+                                 style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                                📍
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="search-bar-container">
+                        <div className="search-bar">
+                            <div className="search-input-row">
+                                <span className="search-icon">🔵</span>
+                                <input
+                                    type="text"
+                                    className="search-input"
+                                    placeholder="출발지 입력"
+                                    value={origin}
+                                    onChange={(e) => setOrigin(e.target.value)}
+                                />
+                                <button className="swap-button" onClick={swapLocations}>
+                                    ⇅
+                                </button>
+                            </div>
+                            <div className="search-input-row">
+                                <span className="search-icon">🎯</span>
+                                <input
+                                    type="text"
+                                    className="search-input"
+                                    placeholder="도착지를 입력하세요"
+                                    value={destination}
+                                    onChange={(e) => setDestination(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Alert Banner */}
+                    {showAlert && (
+                        <div className="alert-banner">
+                            <div className="alert-content">
+                                <div className="alert-emoji">🏃</div>
+                                <div className="alert-text">
+                                    <div className="alert-title">지금 뛰어야 해요!</div>
+                                    <div className="alert-subtitle">
+                                        당신의 속도: {walkingSpeed} km/h<br/>
+                                        54번 버스 3분 후 도착
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bottom Sheet */}
+                    <div className="bottom-sheet">
+                        <div className="sheet-handle"></div>
+                        <div className="sheet-content">
+                            {(!origin || !destination) ? (
+                                <>
+                                    <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px' }}>
+                                        어디로 가시나요?
+                                    </h3>
+                                    <button 
+                                        className="action-button"
+                                        onClick={handleRouteSearch}
+                                        disabled={!origin || !destination}
+                                        style={{ opacity: (!origin || !destination) ? 0.5 : 1 }}
+                                    >
+                                        경로 찾기
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="route-info-card">
+                                        <div className="route-time">23분</div>
+                                        <div className="route-details">
+                                            <span>📍 2.3km</span>
+                                            <span>•</span>
+                                            <span>🕐 10:23 도착</span>
+                                        </div>
+                                    </div>
+                                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px' }}>
+                                        💡 당신의 걷기 속도 ({walkingSpeed} km/h)를 기반으로 계산했어요
+                                    </p>
+                                    <button 
+                                        className="action-button"
+                                        onClick={handleRouteSearch}
+                                    >
+                                        출발하기 🚀
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </>
+            );
+
+            // Main render
+            return (
+                <div className="phone-frame">
+                    {screen === 'welcome' && <WelcomeScreen />}
+                    {screen === 'walkTest' && <WalkTestScreen />}
+                    {screen === 'result' && <ResultScreen />}
+                    {screen === 'map' && <MapScreen />}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<TimeRightApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
