@@ -62,21 +62,21 @@ export function ActionAlert({
     switch (type) {
       case 'urgent':
         return {
-          backgroundColor: '#DC2626',
-          icon: '⚡',
-          recommendedAction: '🏃 빠르게 걷기',
+          accentColor: '#DC2626',
+          label: '긴급',
+          recommendedAction: '빠르게 이동',
         };
       case 'warning':
         return {
-          backgroundColor: '#F97316',
-          icon: '⚠️',
-          recommendedAction: '🚶 조금 서두르기',
+          accentColor: '#F97316',
+          label: '주의',
+          recommendedAction: '조금 서두르기',
         };
       case 'info':
       default:
         return {
-          backgroundColor: '#2563EB',
-          icon: 'ℹ️',
+          accentColor: '#2563EB',
+          label: '안내',
           recommendedAction: null,
         };
     }
@@ -94,23 +94,30 @@ export function ActionAlert({
         },
       ]}
     >
-      <View style={[styles.card, { backgroundColor: alertStyle.backgroundColor }]}>
-        <View style={styles.content}>
-          <Text style={styles.icon}>{alertStyle.icon}</Text>
-          <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
-            <Text style={styles.closeIcon}>✕</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.card}>
+        <View style={[styles.accentBar, { backgroundColor: alertStyle.accentColor }]} />
 
-        {type === 'urgent' && alertStyle.recommendedAction && (
-          <View style={styles.actionContainer}>
-            <Text style={styles.actionLabel}>권장 행동:</Text>
-            <View style={styles.actionBadge}>
-              <Text style={styles.actionText}>{alertStyle.recommendedAction}</Text>
+        <View style={styles.cardContent}>
+          <View style={styles.header}>
+            <View style={styles.labelContainer}>
+              <View style={[styles.labelDot, { backgroundColor: alertStyle.accentColor }]} />
+              <Text style={styles.label}>{alertStyle.label}</Text>
             </View>
+            <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
+              <Text style={styles.closeIcon}>✕</Text>
+            </TouchableOpacity>
           </View>
-        )}
+
+          <Text style={styles.message}>{message}</Text>
+
+          {type === 'urgent' && alertStyle.recommendedAction && (
+            <View style={styles.actionContainer}>
+              <View style={[styles.actionBadge, { backgroundColor: alertStyle.accentColor }]}>
+                <Text style={styles.actionText}>{alertStyle.recommendedAction}</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -125,61 +132,75 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   card: {
-    borderRadius: 16,
-    padding: 16,
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  content: {
+  accentBar: {
+    width: 4,
+  },
+  cardContent: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  icon: {
-    fontSize: 24,
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  labelDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    letterSpacing: 0.3,
   },
   message: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 22,
+    color: '#374151',
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '500',
   },
   closeButton: {
     padding: 4,
     borderRadius: 12,
+    marginLeft: 8,
   },
   closeIcon: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#9CA3AF',
+    fontSize: 18,
+    fontWeight: '600',
   },
   actionContainer: {
     marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.3)',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  actionLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
   },
   actionBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 6,
   },
   actionText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
 });

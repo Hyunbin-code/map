@@ -74,8 +74,10 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
           style={styles.collapsedButton}
           onPress={() => setIsExpanded(true)}
         >
-          <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.placeholder}>목적지를 검색하세요</Text>
+          <View style={styles.searchIconCircle}>
+            <View style={styles.searchIconLine} />
+          </View>
+          <Text style={styles.placeholder}>목적지 검색</Text>
         </TouchableOpacity>
       </View>
     );
@@ -87,7 +89,7 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
         {/* Search inputs */}
         <View style={styles.inputSection}>
           <View style={styles.inputRow}>
-            <Text style={styles.locationIcon}>🧭</Text>
+            <View style={styles.locationDotFrom} />
             <TextInput
               style={styles.input}
               placeholder="출발지 (현재 위치)"
@@ -101,7 +103,7 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
           <View style={styles.divider} />
 
           <View style={styles.inputRow}>
-            <Text style={styles.locationIcon}>📍</Text>
+            <View style={styles.locationDotTo} />
             <TextInput
               style={styles.input}
               placeholder="도착지"
@@ -117,10 +119,7 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
         {/* Favorites */}
         {!from && !to && favorites.length > 0 && (
           <View style={styles.favoritesSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>⭐</Text>
-              <Text style={styles.sectionTitle}>즐겨찾기</Text>
-            </View>
+            <Text style={styles.sectionTitle}>즐겨찾기</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -143,10 +142,7 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
         {/* Recent searches */}
         {!from && !to && recentSearches.length > 0 && (
           <View style={styles.recentSection}>
-            <View style={styles.recentHeader}>
-              <Text style={styles.clockIcon}>🕐</Text>
-              <Text style={styles.recentTitle}>최근 검색</Text>
-            </View>
+            <Text style={styles.sectionTitle}>최근 검색</Text>
             <View style={styles.recentList}>
               {recentSearches.map((search, index) => (
                 <TouchableOpacity
@@ -222,17 +218,32 @@ const styles = StyleSheet.create({
     gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
-  searchIcon: {
-    fontSize: 20,
+  searchIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#9CA3AF',
+    position: 'relative',
+  },
+  searchIconLine: {
+    position: 'absolute',
+    width: 6,
+    height: 2,
+    backgroundColor: '#9CA3AF',
+    bottom: -4,
+    right: -4,
+    transform: [{ rotate: '45deg' }],
   },
   placeholder: {
     flex: 1,
     fontSize: 16,
-    color: '#9CA3AF',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   expandedCard: {
     backgroundColor: '#FFFFFF',
@@ -252,8 +263,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  locationIcon: {
-    fontSize: 20,
+  locationDotFrom: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#9CA3AF',
+  },
+  locationDotTo: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#2563EB',
   },
   input: {
     flex: 1,
@@ -269,21 +289,17 @@ const styles = StyleSheet.create({
   favoritesSection: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingVertical: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  sectionIcon: {
-    fontSize: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#6B7280',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   favoritesScroll: {
     paddingHorizontal: 16,
@@ -309,20 +325,9 @@ const styles = StyleSheet.create({
   recentSection: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    padding: 16,
-  },
-  recentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  clockIcon: {
-    fontSize: 16,
-  },
-  recentTitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   recentList: {
     gap: 8,

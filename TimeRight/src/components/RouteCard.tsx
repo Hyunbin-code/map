@@ -39,26 +39,26 @@ export function RouteCard({
   const getStepIcon = (type: string) => {
     switch (type) {
       case 'walk':
-        return '🚶';
+        return '도보';
       case 'bus':
-        return '🚌';
+        return '버스';
       case 'subway':
-        return '🚇';
+        return '지하철';
       default:
-        return '🚶';
+        return '도보';
     }
   };
 
   const getStepColor = (type: string) => {
     switch (type) {
       case 'walk':
-        return { bg: '#F3F4F6', text: '#4B5563' };
+        return { bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' };
       case 'bus':
-        return { bg: '#D1FAE5', text: '#059669' };
+        return { bg: '#DCFCE7', text: '#16A34A', border: '#86EFAC' };
       case 'subway':
-        return { bg: '#DBEAFE', text: '#2563EB' };
+        return { bg: '#DBEAFE', text: '#2563EB', border: '#93C5FD' };
       default:
-        return { bg: '#F3F4F6', text: '#4B5563' };
+        return { bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' };
     }
   };
 
@@ -80,7 +80,6 @@ export function RouteCard({
             )}
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>⏱️</Text>
             <Text style={styles.infoText}>{time}</Text>
             <Text style={styles.separator}>·</Text>
             <Text style={styles.infoText}>{arrivalTime} 도착</Text>
@@ -105,10 +104,15 @@ export function RouteCard({
               <View
                 style={[
                   styles.stepChip,
-                  { backgroundColor: colors.bg },
+                  {
+                    backgroundColor: colors.bg,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
-                <Text style={styles.stepIcon}>{getStepIcon(step.type)}</Text>
+                <Text style={[styles.stepLabel, { color: colors.text }]}>
+                  {getStepIcon(step.type)}
+                </Text>
                 <Text style={[styles.stepText, { color: colors.text }]}>
                   {step.line || step.duration}
                 </Text>
@@ -188,12 +192,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  infoIcon: {
-    fontSize: 14,
-  },
   infoText: {
     fontSize: 14,
     color: '#6B7280',
+    fontWeight: '500',
   },
   separator: {
     fontSize: 14,
@@ -224,15 +226,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 8,
     gap: 6,
+    borderWidth: 1,
   },
-  stepIcon: {
-    fontSize: 16,
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   stepText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   arrow: {
     fontSize: 14,

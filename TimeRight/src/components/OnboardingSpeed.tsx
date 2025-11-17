@@ -59,10 +59,10 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
 
   const getSpeedCategory = (speed: number) => {
     if (speed < 1.1)
-      return { label: '여유롭게', emoji: '🚶', color: '#2563EB' };
+      return { label: '여유롭게', color: '#2563EB' };
     if (speed < 1.3)
-      return { label: '보통', emoji: '🚶‍♂️', color: '#10B981' };
-    return { label: '빠르게', emoji: '🏃', color: '#F97316' };
+      return { label: '보통', color: '#10B981' };
+    return { label: '빠르게', color: '#F97316' };
   };
 
   if (step === 'welcome') {
@@ -70,8 +70,8 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconLarge}>👣</Text>
+            <View style={styles.appIcon}>
+              <View style={styles.appIconInner} />
             </View>
             <Text style={styles.title}>TimeRight에 오신 것을 환영합니다</Text>
             <Text style={styles.subtitle}>
@@ -81,9 +81,7 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
 
           <View style={styles.featureList}>
             <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: '#DBEAFE' }]}>
-                <Text style={styles.featureEmoji}>⚡</Text>
-              </View>
+              <View style={[styles.featureDot, { backgroundColor: '#2563EB' }]} />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>정확한 도착 시간</Text>
                 <Text style={styles.featureDescription}>
@@ -93,9 +91,7 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
             </View>
 
             <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: '#D1FAE5' }]}>
-                <Text style={styles.featureEmoji}>⏱️</Text>
-              </View>
+              <View style={[styles.featureDot, { backgroundColor: '#10B981' }]} />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>실시간 행동 알림</Text>
                 <Text style={styles.featureDescription}>
@@ -105,9 +101,7 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
             </View>
 
             <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: '#E9D5FF' }]}>
-                <Text style={styles.featureEmoji}>✅</Text>
-              </View>
+              <View style={[styles.featureDot, { backgroundColor: '#8B5CF6' }]} />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>환승 타이밍</Text>
                 <Text style={styles.featureDescription}>
@@ -143,11 +137,11 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
         <View style={styles.centerContent}>
           <Animated.View
             style={[
-              styles.measuringIconContainer,
+              styles.measuringIcon,
               { transform: [{ scale: pulseAnim }] },
             ]}
           >
-            <Text style={styles.iconXLarge}>👣</Text>
+            <View style={styles.measuringIconInner} />
           </Animated.View>
 
           <Text style={styles.title}>걷기 속도 측정 중...</Text>
@@ -167,7 +161,8 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
           </View>
 
           <View style={styles.tipContainer}>
-            <Text style={styles.tipText}>💡 팁: 이 측정은 한 번만 하면 됩니다</Text>
+            <Text style={styles.tipLabel}>안내</Text>
+            <Text style={styles.tipText}>이 측정은 한 번만 하면 됩니다</Text>
             <Text style={styles.tipText}>설정에서 언제든 재측정할 수 있습니다</Text>
           </View>
         </View>
@@ -181,11 +176,11 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.centerContent}>
-        <View style={styles.successIconContainer}>
-          <Text style={styles.iconXLarge}>✅</Text>
+        <View style={[styles.successIcon, { backgroundColor: speedInfo.color }]}>
+          <View style={styles.successIconInner} />
         </View>
 
-        <Text style={styles.title}>측정 완료!</Text>
+        <Text style={styles.title}>측정 완료</Text>
         <Text style={styles.subtitle}>당신의 걷기 속도가 측정되었습니다</Text>
 
         <View style={styles.resultCard}>
@@ -195,10 +190,9 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
               <Text style={styles.speedValue}>{measuredSpeed}</Text>
               <Text style={styles.speedUnit}>m/s</Text>
             </View>
-            <View style={[styles.categoryBadge, { backgroundColor: '#F3F4F6' }]}>
-              <Text style={styles.categoryEmoji}>{speedInfo.emoji}</Text>
-              <Text style={[styles.categoryText, { color: speedInfo.color }]}>
-                {speedInfo.label} 걷는 스타일
+            <View style={[styles.categoryBadge, { backgroundColor: speedInfo.color }]}>
+              <Text style={[styles.categoryText, { color: '#FFFFFF' }]}>
+                {speedInfo.label}
               </Text>
             </View>
           </View>
@@ -219,7 +213,7 @@ export function OnboardingSpeed({ onComplete }: OnboardingSpeedProps) {
 
         <View style={styles.successBanner}>
           <Text style={styles.successText}>
-            🎯 이제 당신에게 딱 맞는 경로 안내를 제공합니다!
+            이제 당신에게 딱 맞는 경로 안내를 제공합니다
           </Text>
         </View>
 
@@ -259,20 +253,21 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     marginTop: 60,
   },
-  iconContainer: {
+  appIcon: {
     width: 80,
     height: 80,
     backgroundColor: '#2563EB',
-    borderRadius: 24,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
   },
-  iconLarge: {
-    fontSize: 40,
-  },
-  iconXLarge: {
-    fontSize: 48,
+  appIconInner: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    opacity: 0.9,
   },
   title: {
     fontSize: 28,
@@ -303,15 +298,11 @@ const styles = StyleSheet.create({
     elevation: 2,
     gap: 16,
   },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  featureEmoji: {
-    fontSize: 20,
+  featureDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 6,
   },
   featureContent: {
     flex: 1,
@@ -350,7 +341,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 16,
   },
-  measuringIconContainer: {
+  measuringIcon: {
     width: 96,
     height: 96,
     backgroundColor: '#2563EB',
@@ -358,6 +349,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
+  },
+  measuringIconInner: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    opacity: 0.9,
   },
   progressCard: {
     backgroundColor: '#FFFFFF',
@@ -405,21 +403,37 @@ const styles = StyleSheet.create({
   },
   tipContainer: {
     marginTop: 24,
+    paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  tipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tipText: {
     fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
+    textAlign: 'center',
   },
-  successIconContainer: {
+  successIcon: {
     width: 96,
     height: 96,
-    backgroundColor: '#10B981',
     borderRadius: 48,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
+  },
+  successIconInner: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    opacity: 0.9,
   },
   resultCard: {
     backgroundColor: '#FFFFFF',
@@ -459,19 +473,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
-  },
-  categoryEmoji: {
-    fontSize: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   categoryText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   comparisonContainer: {
     flexDirection: 'row',
