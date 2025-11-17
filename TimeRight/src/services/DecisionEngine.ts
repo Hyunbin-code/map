@@ -14,14 +14,18 @@ interface TransferParams {
 
 class DecisionEngine {
   private readonly SAFETY_MARGIN = 30; // 30초 안전 마진
-  private readonly WALK_SPEED = 1.2; // 평균 보행 속도 (m/s)
+  private readonly DEFAULT_WALK_SPEED = 1.2; // 기본 보행 속도 (m/s)
 
   /**
    * 필요한 총 이동 시간 계산
    */
-  calculateRequiredTime(distance: number, signalWaitTimes: number[]): number {
-    // 순수 이동 시간
-    const walkTime = distance / this.WALK_SPEED;
+  calculateRequiredTime(
+    distance: number,
+    signalWaitTimes: number[],
+    userSpeed: number = this.DEFAULT_WALK_SPEED
+  ): number {
+    // 순수 이동 시간 (사용자 속도 적용)
+    const walkTime = distance / userSpeed;
 
     // 신호 대기 시간 합산
     const totalSignalWait = signalWaitTimes.reduce((sum, wait) => sum + wait, 0);
@@ -33,10 +37,10 @@ class DecisionEngine {
   /**
    * 행동 결정 (핵심 알고리즘)
    */
-  decide(params: DecisionParams): Decision {
+  decide(params: DecisionParams, userSpeed?: number): Decision {
     const { distance, busArrivalTime, signalWaitTimes } = params;
 
-    const requiredTime = this.calculateRequiredTime(distance, signalWaitTimes);
+    const requiredTime = this.calculateRequiredTime(distance, signalWaitTimes, userSpeed);
     const timeDiff = busArrivalTime - requiredTime;
 
     if (timeDiff < 0) {
@@ -88,11 +92,11 @@ class DecisionEngine {
   /**
    * 환승 타이밍 결정
    */
-  decideTransfer(params: TransferParams): Decision {
+  decideTransfer(params: TransferParams, userSpeed?: number): Decision {
     const { platformDistance, nextTrainArrival, crowdLevel } = params;
 
     // 환승 시간 계산
-    const transferTime = this.calculateTransferTime(platformDistance, crowdLevel);
+    const transferTime = this.calculateTransferTime(platformDistance, crowdLevel, userSpeed);
 
     if (nextTrainArrival < transferTime) {
       return {
@@ -127,8 +131,12 @@ class DecisionEngine {
   /**
    * 환승 시간 계산
    */
-  private calculateTransferTime(distance: number, crowdLevel: 'LOW' | 'MEDIUM' | 'HIGH'): number {
-    const baseTime = distance / this.WALK_SPEED;
+  private calculateTransferTime(
+    distance: number,
+    crowdLevel: 'LOW' | 'MEDIUM' | 'HIGH',
+    userSpeed: number = this.DEFAULT_WALK_SPEED
+  ): number {
+    const baseTime = distance / userSpeed;
 
     const crowdMultiplier = {
       LOW: 1.0,

@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { ActionAlert, AlertType } from './ActionAlert';
+import DecisionEngine from '../services/DecisionEngine';
+import { calculateDistance, formatDistance, formatTime } from '../utils/distance';
 
 interface Step {
   type: 'walk' | 'subway' | 'bus' | 'transfer';
@@ -66,37 +68,88 @@ export function NavigationView({
     },
   ];
 
+  // 실시간 거리 계산 및 업데이트
   useEffect(() => {
-    // Simulate progress
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => Math.max(0, prev - 1));
-      setDistanceRemaining((prev) => Math.max(0, prev - 2));
+    const updateInterval = setInterval(() => {
+      // 실제 거리 계산
+      const realDistance = calculateDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        destination.latitude,
+        destination.longitude
+      );
+
+      setDistanceRemaining(Math.max(0, realDistance));
+
+      // 예상 도착 시간 계산
+      const estimatedTime = realDistance / userSpeed;
+      setTimeRemaining(Math.max(0, estimatedTime));
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearInterval(updateInterval);
+  }, [currentLocation, destination, userSpeed]);
 
+  // 실시간 알림 생성 (DecisionEngine 사용)
   useEffect(() => {
-    // Trigger alerts based on conditions
-    const alertInterval = setInterval(() => {
-      const random = Math.random();
-      if (random < 0.2) {
-        if (currentStep === 0 && distanceRemaining < 100) {
-          setAlertType('warning');
-          setAlertMessage('정류장 50m 전입니다. 준비하세요!');
+    const checkAlerts = () => {
+      const currentStepData = steps[currentStep];
+
+      // 걷기 단계일 때만 알림 체크
+      if (currentStepData.type === 'walk' && distanceRemaining > 0) {
+        // Mock 버스 도착 시간 (실제로는 API에서 가져와야 함)
+        const mockBusArrival = 120; // 2분 후 도착
+
+        // DecisionEngine으로 행동 결정
+        const decision = DecisionEngine.decide(
+          {
+            distance: distanceRemaining,
+            busArrivalTime: mockBusArrival,
+            signalWaitTimes: [15, 20], // Mock 신호등 대기 시간
+          },
+          userSpeed
+        );
+
+        // Decision urgency를 AlertType으로 매핑
+        let alertTypeMap: AlertType = 'info';
+        if (decision.urgency === 'HIGH') {
+          alertTypeMap = 'urgent';
+        } else if (decision.urgency === 'MEDIUM') {
+          alertTypeMap = 'warning';
+        }
+
+        // 상태 변경이 있을 때만 알림 표시
+        if (decision.urgency === 'HIGH' || decision.urgency === 'MEDIUM') {
+          setAlertType(alertTypeMap);
+          setAlertMessage(decision.message);
           setShowAlert(true);
-          setTimeout(() => setShowAlert(false), 5000);
-        } else if (currentStep === 2) {
-          setAlertType('urgent');
-          setAlertMessage('환승 지하철 2분 후 도착! 서두르세요!');
-          setShowAlert(true);
-          setTimeout(() => setShowAlert(false), 5000);
         }
       }
-    }, 10000);
+
+      // 환승 단계 알림
+      if (currentStepData.type === 'transfer') {
+        const transferDecision = DecisionEngine.decideTransfer(
+          {
+            platformDistance: 100,
+            nextTrainArrival: 90,
+            crowdLevel: 'MEDIUM',
+          },
+          userSpeed
+        );
+
+        if (transferDecision.urgency === 'HIGH') {
+          setAlertType('urgent');
+          setAlertMessage(transferDecision.message);
+          setShowAlert(true);
+        }
+      }
+    };
+
+    // 5초마다 알림 체크
+    const alertInterval = setInterval(checkAlerts, 5000);
+    checkAlerts(); // 즉시 한 번 실행
 
     return () => clearInterval(alertInterval);
-  }, [currentStep, distanceRemaining]);
+  }, [currentStep, distanceRemaining, userSpeed]);
 
   useEffect(() => {
     if (distanceRemaining === 0 && currentStep < steps.length - 1) {
@@ -109,8 +162,6 @@ export function NavigationView({
   }, [distanceRemaining, currentStep]);
 
   const currentStepData = steps[currentStep];
-  const minutes = Math.floor(timeRemaining / 60);
-  const seconds = timeRemaining % 60;
 
   const getStepIcon = (type: string) => {
     switch (type) {
@@ -177,9 +228,7 @@ export function NavigationView({
         <View style={styles.topBarContent}>
           <View style={styles.timeInfo}>
             <Text style={styles.timeIcon}>⏱️</Text>
-            <Text style={styles.timeText}>
-              {minutes}분 {seconds}초
-            </Text>
+            <Text style={styles.timeText}>{formatTime(timeRemaining)}</Text>
           </View>
           <TouchableOpacity style={styles.stopButton} onPress={onStop}>
             <Text style={styles.stopIcon}>✕</Text>
@@ -192,7 +241,7 @@ export function NavigationView({
       <View style={styles.bottomCard}>
         {/* Distance remaining */}
         <View style={styles.distanceRow}>
-          <Text style={styles.distanceValue}>{distanceRemaining}m</Text>
+          <Text style={styles.distanceValue}>{formatDistance(distanceRemaining)}</Text>
           <Text style={styles.distanceLabel}>남음</Text>
         </View>
 
