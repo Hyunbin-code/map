@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  ScrollView,
 } from 'react-native';
+import HistoryService, { SearchHistory } from '../services/HistoryService';
+import FavoritesService, { Favorite } from '../services/FavoritesService';
 
 interface SearchQuery {
   from: string;
@@ -18,32 +21,50 @@ interface SearchBarProps {
   style?: any;
 }
 
-interface RecentSearch {
-  from: string;
-  to: string;
-  time: string;
-}
-
 export function SearchBar({ onSearch, style }: SearchBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [recentSearches, setRecentSearches] = useState<SearchHistory[]>([]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
 
-  const recentSearches: RecentSearch[] = [
-    { from: '강남역', to: '역삼역', time: '오전 10:30' },
-    { from: '홍대입구역', to: '신촌역', time: '어제' },
-  ];
+  // 히스토리 및 즐겨찾기 로드
+  useEffect(() => {
+    if (isExpanded) {
+      loadHistory();
+      loadFavorites();
+    }
+  }, [isExpanded]);
 
-  const handleSearch = () => {
+  const loadHistory = async () => {
+    const history = await HistoryService.getHistory();
+    setRecentSearches(history);
+  };
+
+  const loadFavorites = async () => {
+    const favs = await FavoritesService.getFavorites();
+    setFavorites(favs);
+  };
+
+  const handleSearch = async () => {
     if (from && to) {
+      // 히스토리 저장
+      await HistoryService.addHistory(from, to);
+
       onSearch({ from, to });
       setIsExpanded(false);
     }
   };
 
-  const handleRecentSearch = (search: RecentSearch) => {
+  const handleRecentSearch = (search: SearchHistory) => {
     setFrom(search.from);
     setTo(search.to);
+  };
+
+  const handleRemoveHistory = async (search: SearchHistory, e: any) => {
+    e.stopPropagation();
+    await HistoryService.removeHistory(search.from, search.to);
+    await loadHistory();
   };
 
   if (!isExpanded) {
@@ -93,8 +114,34 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
           </View>
         </View>
 
+        {/* Favorites */}
+        {!from && !to && favorites.length > 0 && (
+          <View style={styles.favoritesSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>⭐</Text>
+              <Text style={styles.sectionTitle}>즐겨찾기</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.favoritesScroll}
+            >
+              {favorites.map((favorite) => (
+                <TouchableOpacity
+                  key={favorite.id}
+                  style={styles.favoriteChip}
+                  onPress={() => setTo(favorite.name)}
+                >
+                  <Text style={styles.favoriteIcon}>{favorite.icon}</Text>
+                  <Text style={styles.favoriteName}>{favorite.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Recent searches */}
-        {!from && !to && (
+        {!from && !to && recentSearches.length > 0 && (
           <View style={styles.recentSection}>
             <View style={styles.recentHeader}>
               <Text style={styles.clockIcon}>🕐</Text>
@@ -107,12 +154,20 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
                   style={styles.recentItem}
                   onPress={() => handleRecentSearch(search)}
                 >
-                  <View style={styles.recentRoute}>
-                    <Text style={styles.recentText}>{search.from}</Text>
-                    <Text style={styles.arrow}>→</Text>
-                    <Text style={styles.recentText}>{search.to}</Text>
+                  <View style={styles.recentContent}>
+                    <View style={styles.recentRoute}>
+                      <Text style={styles.recentText}>{search.from}</Text>
+                      <Text style={styles.arrow}>→</Text>
+                      <Text style={styles.recentText}>{search.to}</Text>
+                    </View>
+                    <Text style={styles.recentTime}>{search.timeFormatted}</Text>
                   </View>
-                  <Text style={styles.recentTime}>{search.time}</Text>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={(e) => handleRemoveHistory(search, e)}
+                  >
+                    <Text style={styles.deleteIcon}>✕</Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
             </View>
@@ -211,6 +266,46 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginVertical: 12,
   },
+  favoritesSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingVertical: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  sectionIcon: {
+    fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  favoritesScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  favoriteChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  favoriteIcon: {
+    fontSize: 18,
+  },
+  favoriteName: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
   recentSection: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -233,9 +328,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 12,
     borderRadius: 8,
     backgroundColor: '#F9FAFB',
+  },
+  recentContent: {
+    flex: 1,
   },
   recentRoute: {
     flexDirection: 'row',
@@ -253,6 +354,14 @@ const styles = StyleSheet.create({
   },
   recentTime: {
     fontSize: 14,
+    color: '#9CA3AF',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  deleteIcon: {
+    fontSize: 16,
     color: '#9CA3AF',
   },
   buttonRow: {

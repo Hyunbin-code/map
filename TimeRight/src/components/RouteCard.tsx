@@ -17,6 +17,12 @@ interface RouteCardProps {
   price: string;
   onSelect: () => void;
   badge?: string;
+  weather?: {
+    icon: string;
+    conditionKo: string;
+    temperature: number;
+  };
+  signalWaitTime?: number;
 }
 
 export function RouteCard({
@@ -27,6 +33,8 @@ export function RouteCard({
   price,
   onSelect,
   badge,
+  weather,
+  signalWaitTime = 2,
 }: RouteCardProps) {
   const getStepIcon = (type: string) => {
     switch (type) {
@@ -122,7 +130,10 @@ export function RouteCard({
               당신의 걷기 속도로 예측한 최적 경로입니다
             </Text>
             <Text style={styles.insightDetail}>
-              신호등 대기 2분 · 날씨 맑음
+              신호등 대기 {signalWaitTime}분
+              {weather && (
+                <Text> · {weather.icon} {weather.conditionKo} {weather.temperature}°C</Text>
+              )}
             </Text>
           </View>
         </View>

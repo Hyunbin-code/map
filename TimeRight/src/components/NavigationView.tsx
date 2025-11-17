@@ -10,6 +10,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import { ActionAlert, AlertType } from './ActionAlert';
 import DecisionEngine from '../services/DecisionEngine';
 import { calculateDistance, formatDistance, formatTime } from '../utils/distance';
+import NavigationNotificationService from '../services/NavigationNotificationService';
 
 interface Step {
   type: 'walk' | 'subway' | 'bus' | 'transfer';
@@ -68,6 +69,17 @@ export function NavigationView({
     },
   ];
 
+  // 알림 서비스 초기화
+  useEffect(() => {
+    // 네비게이션 시작
+    NavigationNotificationService.startNavigation('목적지');
+
+    return () => {
+      // 컴포넌트 언마운트 시 알림 종료
+      NavigationNotificationService.stopNavigation();
+    };
+  }, []);
+
   // 실시간 거리 계산 및 업데이트
   useEffect(() => {
     const updateInterval = setInterval(() => {
@@ -122,7 +134,20 @@ export function NavigationView({
           setAlertType(alertTypeMap);
           setAlertMessage(decision.message);
           setShowAlert(true);
+
+          // 긴급 알림은 진동과 함께 전송
+          if (decision.urgency === 'HIGH') {
+            NavigationNotificationService.sendUrgentAlert(decision.message);
+          }
         }
+
+        // 잠금화면 알림 업데이트
+        NavigationNotificationService.updateNavigation({
+          distance: distanceRemaining,
+          timeRemaining,
+          nextAction: currentStepData.instruction,
+          urgency: decision.urgency,
+        });
       }
 
       // 환승 단계 알림

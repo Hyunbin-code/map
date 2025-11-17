@@ -15,22 +15,44 @@
 
 3. **SearchBar** (`src/components/SearchBar.tsx`)
    - 출발/도착지 검색
-   - 최근 검색 기록
+   - **최근 검색 기록** (AsyncStorage, 삭제 가능)
+   - **즐겨찾기** (가로 스크롤)
    - 확장/축소 UI
 
 4. **RouteCard** (`src/components/RouteCard.tsx`)
    - 경로 카드 (걷기/버스/지하철 아이콘)
    - AI 인사이트 표시
+   - **실시간 날씨 정보** (온도, 날씨 상태)
    - 배지 시스템
 
 5. **NavigationView** (`src/components/NavigationView.tsx`)
    - 실시간 네비게이션 화면
    - 지도 + 단계별 안내
    - Progress bar
+   - **잠금화면 알림** (음악 플레이어처럼)
+
+### 새로 추가된 서비스
+1. **WeatherService** (`src/services/WeatherService.ts`)
+   - OpenWeather API 연동
+   - 10분 캐시
+   - 온도, 날씨 상태, 습도, 풍속
+
+2. **HistoryService** (`src/services/HistoryService.ts`)
+   - 검색 기록 관리 (최대 10개)
+   - 중복 제거, 상대 시간 표시
+
+3. **FavoritesService** (`src/services/FavoritesService.ts`)
+   - 즐겨찾기 관리 (최대 20개)
+   - 아이콘 지원 (🏠, 🏢, 🏫 등)
+
+4. **NavigationNotificationService** (`src/services/NavigationNotificationService.ts`)
+   - expo-notifications 기반
+   - 잠금화면 persistent notification
+   - 긴급 알림 (진동 포함)
 
 ### 업데이트된 파일
-- **HomeScreen** (`src/screens/HomeScreen.tsx`) - 완전 재작성
-- **package.json** - `@react-native-async-storage/async-storage` 추가
+- **HomeScreen** (`src/screens/HomeScreen.tsx`) - 완전 재작성, 날씨 연동
+- **package.json** - AsyncStorage, expo-notifications (기존 설치됨)
 
 ---
 
@@ -94,9 +116,17 @@ npm start
 ### ✅ 2. 검색 기능 테스트
 1. 메인 화면에서 **검색창** 클릭
 2. 검색창 확장 확인
-3. **출발지** 입력 (예: "강남역")
-4. **도착지** 입력 (예: "역삼역")
-5. **검색** 버튼 클릭
+3. **즐겨찾기** 섹션 확인 (가로 스크롤)
+   - 아이콘 + 이름 표시
+   - 클릭 시 도착지에 자동 입력
+4. **최근 검색** 섹션 확인
+   - 검색 기록 표시 (출발지 → 도착지)
+   - 상대 시간 표시 ("방금 전", "5분 전", "어제")
+   - ✕ 버튼으로 삭제 가능
+5. **출발지** 입력 (예: "강남역")
+6. **도착지** 입력 (예: "역삼역")
+7. **검색** 버튼 클릭
+8. 검색 후 기록이 **최근 검색**에 추가되는지 확인
 
 ### ✅ 3. 경로 카드 테스트
 1. 검색 후 **2개의 경로 카드** 표시 확인
@@ -108,6 +138,7 @@ npm start
    - 걷기/지하철/버스 아이콘
    - 요금 표시
    - AI 인사이트 ("당신의 걷기 속도로 예측...")
+   - **날씨 정보**: "신호등 대기 2분 · ☀️ 맑음 22°C"
 
 3. **카드 클릭** → 경로 선택
 
@@ -119,11 +150,24 @@ npm start
    - 상단: 남은 시간, 정지 버튼
    - 하단: 거리, 안내 메시지, 진행 바
 
-4. **알림 테스트** (10초마다 랜덤)
-   - 경고: 주황색 "정류장 50m 전입니다"
-   - 긴급: 빨강색 "환승 지하철 2분 후 도착!"
+4. **앱 내 알림 테스트** (5초마다 체크)
+   - 경고: 주황색 "조금 서두르세요"
+   - 긴급: 빨강색 "지금 빠르게 이동하세요!"
 
 5. **정지 버튼** 클릭 → 메인 화면 복귀
+
+### ✅ 5. 잠금화면 알림 테스트
+1. 네비게이션 시작 후 **홈 버튼** 또는 **전원 버튼** 눌러 잠금
+2. 잠금화면에서 **알림** 확인:
+   - 제목: "🧭 강남역 7번 출구 방향으로 걸어가세요"
+   - 내용: "남은 거리: 240m · 예상 시간: 3분 20초"
+   - **음악 플레이어처럼 상단에 고정**
+
+3. 긴급 상황 시:
+   - 제목: "🏃 지금 빠르게 이동하세요!"
+   - **진동** 발생 확인
+
+4. 네비게이션 종료 시 알림 자동 삭제 확인
 
 ---
 

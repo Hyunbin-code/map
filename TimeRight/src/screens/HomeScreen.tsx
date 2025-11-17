@@ -14,6 +14,7 @@ import { RouteCard, RouteStep } from '../components/RouteCard';
 import { NavigationView } from '../components/NavigationView';
 import { useStore } from '../stores/useStore';
 import LocationService from '../services/LocationService';
+import WeatherService, { WeatherData } from '../services/WeatherService';
 
 interface SearchQuery {
   from: string;
@@ -27,6 +28,7 @@ export default function HomeScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [searchQuery, setSearchQuery] = useState<SearchQuery>({ from: '', to: '' });
   const [isLoading, setIsLoading] = useState(true);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const { userLocation, setUserLocation } = useStore();
 
@@ -53,17 +55,37 @@ export default function HomeScreen() {
   const initializeLocation = async () => {
     try {
       const location = await LocationService.getCurrentLocation();
-      setUserLocation({
+      const coords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      });
+      };
+      setUserLocation(coords);
+
+      // 날씨 정보 로드
+      const weatherData = await WeatherService.getCurrentWeather(
+        coords.latitude,
+        coords.longitude
+      );
+      setWeather(weatherData);
     } catch (error) {
       console.error('Error getting location:', error);
       // Fallback to Seoul coordinates
-      setUserLocation({
+      const fallbackCoords = {
         latitude: 37.5665,
         longitude: 126.978,
-      });
+      };
+      setUserLocation(fallbackCoords);
+
+      // Fallback 위치로 날씨 정보 로드
+      try {
+        const weatherData = await WeatherService.getCurrentWeather(
+          fallbackCoords.latitude,
+          fallbackCoords.longitude
+        );
+        setWeather(weatherData);
+      } catch (weatherError) {
+        console.error('Error getting weather:', weatherError);
+      }
     }
   };
 
@@ -200,6 +222,16 @@ export default function HomeScreen() {
                 price={route.price}
                 onSelect={() => handleRouteSelect(route.id)}
                 badge={route.badge}
+                weather={
+                  weather
+                    ? {
+                        icon: weather.icon,
+                        conditionKo: weather.conditionKo,
+                        temperature: weather.temperature,
+                      }
+                    : undefined
+                }
+                signalWaitTime={2}
               />
             ))}
           </ScrollView>
