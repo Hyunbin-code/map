@@ -1,6 +1,26 @@
 import axios from 'axios';
 import { BusArrival } from '../types';
 
+/**
+ * @deprecated This service is no longer used.
+ * Use TransitAPIService (Kakao Mobility API) instead.
+ *
+ * Migration reasons:
+ * - Seoul API only covers Seoul (nationwide expansion impossible)
+ * - Slow response (500-1000ms vs 100-200ms)
+ * - Lower accuracy (±1-2min vs ±30s)
+ * - Inconsistent UX (different quality per region)
+ *
+ * New API (Kakao Mobility):
+ * - Nationwide coverage
+ * - Fast response (100-200ms)
+ * - High accuracy (±30s)
+ * - Consistent user experience
+ * - Free tier: 300,000 calls/day (DAU 7,500)
+ *
+ * @see TransitAPIService
+ */
+
 // .env 파일에서 API 키를 가져올 예정
 const BUS_API_KEY = process.env.EXPO_PUBLIC_SEOUL_BUS_API_KEY || '';
 const BASE_URL = 'http://ws.bus.go.kr/api/rest';

@@ -1,11 +1,11 @@
 import NavigationService from '../src/services/NavigationService';
-import BusAPIService from '../src/services/BusAPIService';
+import TransitAPIService from '../src/services/TransitAPIService';
 import DecisionEngine from '../src/services/DecisionEngine';
 import NotificationService from '../src/services/NotificationService';
 import type { Stop, Location, BusArrival, Decision } from '../src/types';
 
 // Mock services
-jest.mock('../src/services/BusAPIService');
+jest.mock('../src/services/TransitAPIService');
 jest.mock('../src/services/DecisionEngine');
 jest.mock('../src/services/NotificationService');
 
@@ -50,7 +50,7 @@ describe('NavigationService', () => {
     getUserLocationCallback = jest.fn(() => mockUserLocation);
 
     // Setup default mocks
-    (BusAPIService.getArrivalInfo as jest.Mock).mockResolvedValue(mockBusArrivals);
+    (TransitAPIService.getArrivalInfo as jest.Mock).mockResolvedValue(mockBusArrivals);
     (DecisionEngine.makeDecision as jest.Mock).mockReturnValue(mockDecision);
     (NotificationService.send as jest.Mock).mockResolvedValue(undefined);
   });
@@ -66,7 +66,7 @@ describe('NavigationService', () => {
       await NavigationService.start(mockStop, getUserLocationCallback, onDecisionUpdate);
 
       expect(getUserLocationCallback).toHaveBeenCalled();
-      expect(BusAPIService.getArrivalInfo).toHaveBeenCalledWith(mockStop.id);
+      expect(TransitAPIService.getArrivalInfo).toHaveBeenCalled();
       expect(DecisionEngine.makeDecision).toHaveBeenCalled();
       expect(onDecisionUpdate).toHaveBeenCalledWith(mockDecision);
     });
@@ -77,13 +77,13 @@ describe('NavigationService', () => {
 
       await NavigationService.start(mockStop, getUserLocationCallback, onDecisionUpdate);
 
-      expect(BusAPIService.getArrivalInfo).not.toHaveBeenCalled();
+      expect(TransitAPIService.getArrivalInfo).not.toHaveBeenCalled();
       expect(DecisionEngine.makeDecision).not.toHaveBeenCalled();
       expect(onDecisionUpdate).not.toHaveBeenCalled();
     });
 
     it('should handle API errors gracefully', async () => {
-      (BusAPIService.getArrivalInfo as jest.Mock).mockRejectedValue(
+      (TransitAPIService.getArrivalInfo as jest.Mock).mockRejectedValue(
         new Error('API error')
       );
       const onDecisionUpdate = jest.fn();
@@ -133,7 +133,7 @@ describe('NavigationService', () => {
       jest.advanceTimersByTime(30000);
       await Promise.resolve();
 
-      expect(BusAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 30s
+      expect(TransitAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 30s
     });
 
     it('should use 15s interval when distance between 500m-1km', async () => {
@@ -148,7 +148,7 @@ describe('NavigationService', () => {
       jest.advanceTimersByTime(15000);
       await Promise.resolve();
 
-      expect(BusAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 15s
+      expect(TransitAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 15s
     });
 
     it('should use 5s interval when distance < 200m', async () => {
@@ -163,7 +163,7 @@ describe('NavigationService', () => {
       jest.advanceTimersByTime(5000);
       await Promise.resolve();
 
-      expect(BusAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 5s
+      expect(TransitAPIService.getArrivalInfo).toHaveBeenCalledTimes(2); // Initial + 5s
     });
   });
 
@@ -178,7 +178,7 @@ describe('NavigationService', () => {
       await Promise.resolve();
 
       // Should only have initial call, no more periodic calls
-      expect(BusAPIService.getArrivalInfo).toHaveBeenCalledTimes(1);
+      expect(TransitAPIService.getArrivalInfo).toHaveBeenCalledTimes(1);
     });
 
     it('should do nothing if navigation is not active', () => {

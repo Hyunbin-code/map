@@ -1,5 +1,5 @@
 import { Location, Stop, Decision } from '../types';
-import BusAPIService from './BusAPIService';
+import TransitAPIService from './TransitAPIService';
 import DecisionEngine from './DecisionEngine';
 import NotificationService from './NotificationService';
 
@@ -91,8 +91,8 @@ class NavigationService {
       // 3. 거리 기반 체크 간격 동적 조정
       this.adjustCheckIntervalByDistance(distance);
 
-      // 4. 버스 도착 정보 가져오기
-      const busArrivals = await BusAPIService.getArrivalInfo(this.targetStop.id);
+      // 4. 버스 도착 정보 가져오기 (거리 정보 포함 - 스마트 캐싱)
+      const busArrivals = await TransitAPIService.getArrivalInfo(this.targetStop.id, distance);
       if (!busArrivals || busArrivals.length === 0) {
         console.warn('[NavigationService] No bus arrivals available');
         return;

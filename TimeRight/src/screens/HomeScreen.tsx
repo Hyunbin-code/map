@@ -14,7 +14,7 @@ import {
 import MapView, { Marker, Circle } from 'react-native-maps';
 import { useStore } from '../stores/useStore';
 import LocationService from '../services/LocationService';
-import BusAPIService from '../services/BusAPIService';
+import TransitAPIService from '../services/TransitAPIService';
 import DecisionEngine from '../services/DecisionEngine';
 import NavigationService from '../services/NavigationService';
 import { MOCK_BUS_STOPS, findNearbyStops } from '../data/busStops';
@@ -149,7 +149,7 @@ export default function HomeScreen() {
     try {
       setIsLoading(true);
 
-      const busArrivals = await BusAPIService.getArrivalInfo('mock-stop-id');
+      const busArrivals = await TransitAPIService.getArrivalInfo('mock-stop-id');
 
       if (busArrivals.length === 0) {
         setError('버스 정보를 가져올 수 없습니다');
