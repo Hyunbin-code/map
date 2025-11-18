@@ -11,6 +11,8 @@ import { ActionAlert, AlertType } from './ActionAlert';
 import DecisionEngine from '../services/DecisionEngine';
 import { calculateDistance, formatDistance, formatTime } from '../utils/distance';
 import NavigationNotificationService from '../services/NavigationNotificationService';
+import VoiceService from '../services/VoiceService';
+import BatteryOptimizer from '../services/BatteryOptimizer';
 
 interface Step {
   type: 'walk' | 'subway' | 'bus' | 'transfer';
@@ -41,6 +43,9 @@ export function NavigationView({
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<AlertType>('info');
+  const [batteryLevel, setBatteryLevel] = useState(100);
+  const [batteryOptimized, setBatteryOptimized] = useState(false);
+  const [preAlertShown, setPreAlertShown] = useState(false);
 
   const steps: Step[] = [
     {
@@ -80,6 +85,41 @@ export function NavigationView({
     };
   }, []);
 
+  // 배터리 최적화 초기화
+  useEffect(() => {
+    BatteryOptimizer.initialize();
+
+    // 배터리 레벨 체크 (5초마다)
+    const batteryInterval = setInterval(() => {
+      const level = BatteryOptimizer.getBatteryLevelPercent();
+      const previousLevel = batteryLevel;
+
+      setBatteryLevel(level);
+
+      // 배터리 최적화 활성화 조건 체크
+      const isOptimized =
+        level < 20 || BatteryOptimizer.isInLowPowerMode();
+
+      // 배터리 최적화가 새로 활성화되었을 때만 알림
+      if (isOptimized && !batteryOptimized) {
+        setBatteryOptimized(true);
+        setAlertType('info');
+        setAlertMessage(
+          '배터리 절약을 위해 GPS 정확도가 낮아졌습니다'
+        );
+        setShowAlert(true);
+
+        // 음성 안내
+        VoiceService.speakInfo('배터리 절약 모드가 활성화되었습니다');
+      } else if (!isOptimized && batteryOptimized) {
+        // 배터리가 다시 충분해졌을 때
+        setBatteryOptimized(false);
+      }
+    }, 5000);
+
+    return () => clearInterval(batteryInterval);
+  }, [batteryLevel, batteryOptimized]);
+
   // 실시간 거리 계산 및 업데이트
   useEffect(() => {
     const updateInterval = setInterval(() => {
@@ -96,10 +136,34 @@ export function NavigationView({
       // 예상 도착 시간 계산
       const estimatedTime = realDistance / userSpeed;
       setTimeRemaining(Math.max(0, estimatedTime));
+
+      // 도착 5분 전 알림 (300초 = 5분)
+      if (estimatedTime <= 300 && estimatedTime > 0 && !preAlertShown) {
+        setPreAlertShown(true);
+        const minutes = Math.floor(estimatedTime / 60);
+        const seconds = Math.round(estimatedTime % 60);
+
+        const arrivalMessage = `약 ${minutes}분 ${seconds}초 후 도착 예정입니다`;
+
+        setAlertType('info');
+        setAlertMessage(arrivalMessage);
+        setShowAlert(true);
+
+        // 음성 안내
+        VoiceService.speakInfo(arrivalMessage);
+
+        // 잠금화면 알림
+        NavigationNotificationService.updateNavigation({
+          distance: realDistance,
+          timeRemaining: estimatedTime,
+          nextAction: '곧 도착합니다',
+          urgency: 'LOW',
+        });
+      }
     }, 1000);
 
     return () => clearInterval(updateInterval);
-  }, [currentLocation, destination, userSpeed]);
+  }, [currentLocation, destination, userSpeed, preAlertShown]);
 
   // 실시간 알림 생성 (DecisionEngine 사용)
   useEffect(() => {
@@ -138,6 +202,11 @@ export function NavigationView({
           // 긴급 알림은 진동과 함께 전송
           if (decision.urgency === 'HIGH') {
             NavigationNotificationService.sendUrgentAlert(decision.message);
+            // 음성 알림 (긴급)
+            VoiceService.speakUrgentAlert(decision.message);
+          } else if (decision.urgency === 'MEDIUM') {
+            // 음성 알림 (경고)
+            VoiceService.speakWarningAlert(decision.message);
           }
         }
 
@@ -187,6 +256,13 @@ export function NavigationView({
   }, [distanceRemaining, currentStep]);
 
   const currentStepData = steps[currentStep];
+
+  // 음성 안내 버튼 핸들러
+  const handleVoicePress = () => {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = Math.round(timeRemaining % 60);
+    VoiceService.speakRemainingTime(minutes, seconds);
+  };
 
   const getStepIcon = (type: string) => {
     switch (type) {
@@ -252,8 +328,27 @@ export function NavigationView({
       <View style={styles.topBar}>
         <View style={styles.topBarContent}>
           <View style={styles.timeInfo}>
-            <Text style={styles.timeIcon}>⏱️</Text>
+            <TouchableOpacity style={styles.voiceButton} onPress={handleVoicePress}>
+              <View style={styles.soundWave}>
+                <View style={[styles.bar, styles.bar1]} />
+                <View style={[styles.bar, styles.bar2]} />
+                <View style={[styles.bar, styles.bar3]} />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.timeText}>{formatTime(timeRemaining)}</Text>
+            {batteryOptimized && (
+              <View style={styles.batteryIndicator}>
+                <View style={styles.batteryIcon}>
+                  <View
+                    style={[
+                      styles.batteryLevel,
+                      { width: `${Math.max(10, batteryLevel)}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.batteryText}>{batteryLevel}%</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity style={styles.stopButton} onPress={onStop}>
             <Text style={styles.stopIcon}>✕</Text>
@@ -357,14 +452,67 @@ const styles = StyleSheet.create({
   timeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  timeIcon: {
-    fontSize: 20,
+  voiceButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(37, 99, 235, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  soundWave: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    height: 16,
+  },
+  bar: {
+    width: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+  },
+  bar1: {
+    height: 8,
+  },
+  bar2: {
+    height: 14,
+  },
+  bar3: {
+    height: 10,
   },
   timeText: {
     color: '#FFFFFF',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  batteryIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  batteryIcon: {
+    width: 20,
+    height: 12,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 2,
+    padding: 1,
+    position: 'relative',
+  },
+  batteryLevel: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
+  },
+  batteryText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '600',
   },
   stopButton: {

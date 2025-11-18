@@ -11,6 +11,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { OnboardingSpeed } from '../components/OnboardingSpeed';
 import { SearchBar } from '../components/SearchBar';
 import { RouteCard, RouteStep } from '../components/RouteCard';
+import { RouteComparison } from '../components/RouteComparison';
 import { NavigationView } from '../components/NavigationView';
 import { useStore } from '../stores/useStore';
 import LocationService from '../services/LocationService';
@@ -29,12 +30,15 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState<SearchQuery>({ from: '', to: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
-  const { userLocation, setUserLocation } = useStore();
+  const { userLocation, setUserLocation, addFavorite, loadFavorites, addSearchHistory, loadSearchHistory } = useStore();
 
   useEffect(() => {
     checkOnboarding();
     initializeLocation();
+    loadFavorites();
+    loadSearchHistory();
   }, []);
 
   const checkOnboarding = async () => {
@@ -102,6 +106,15 @@ export default function HomeScreen() {
 
   const handleSearch = (query: SearchQuery) => {
     setSearchQuery(query);
+    if (query.from && query.to) {
+      addSearchHistory(query.from, query.to);
+    }
+  };
+
+  const handleAddFavorite = () => {
+    if (searchQuery.from && searchQuery.to) {
+      addFavorite(searchQuery.from, searchQuery.to);
+    }
   };
 
   const handleStartNavigation = (route: any) => {
@@ -205,9 +218,43 @@ export default function HomeScreen() {
       {/* Search Bar */}
       <SearchBar onSearch={handleSearch} style={styles.searchBar} />
 
+      {/* Route Comparison */}
+      {showComparison && searchQuery.from && searchQuery.to && !selectedRoute && (
+        <RouteComparison
+          route1={mockRoutes[0]}
+          route2={mockRoutes[1]}
+          onSelect={(routeId) => {
+            handleRouteSelect(routeId);
+            setShowComparison(false);
+          }}
+          onClose={() => setShowComparison(false)}
+        />
+      )}
+
       {/* Route Cards */}
-      {searchQuery.from && searchQuery.to && !selectedRoute && (
+      {searchQuery.from && searchQuery.to && !selectedRoute && !showComparison && (
         <View style={styles.routeCardsContainer}>
+          <View style={styles.routeCardsHeader}>
+            <Text style={styles.routeCardsTitle}>경로 {mockRoutes.length}개</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleAddFavorite}
+              >
+                <View style={styles.bookmarkIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.compareButton}
+                onPress={() => setShowComparison(true)}
+              >
+                <View style={styles.compareIcon}>
+                  <View style={styles.compareIconBar} />
+                  <View style={styles.compareIconBar} />
+                </View>
+                <Text style={styles.compareButtonText}>비교</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <ScrollView
             contentContainerStyle={styles.routeCardsContent}
             showsVerticalScrollIndicator={false}
@@ -294,8 +341,70 @@ const styles = StyleSheet.create({
     maxHeight: '60%',
     backgroundColor: 'transparent',
   },
+  routeCardsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  routeCardsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favoriteButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  bookmarkIcon: {
+    width: 14,
+    height: 18,
+    backgroundColor: '#F59E0B',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    position: 'relative',
+  },
+  compareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  compareIcon: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  compareIconBar: {
+    width: 2,
+    height: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
+  },
+  compareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   routeCardsContent: {
     padding: 16,
+    paddingTop: 0,
     gap: 12,
   },
   selectedRouteCard: {

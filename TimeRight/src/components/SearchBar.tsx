@@ -59,6 +59,9 @@ export function SearchBar({ onSearch, style }: SearchBarProps) {
   const handleRecentSearch = (search: SearchHistory) => {
     setFrom(search.from);
     setTo(search.to);
+    // Immediately search with this route
+    onSearch({ from: search.from, to: search.to });
+    setIsExpanded(false);
   };
 
   const handleRemoveHistory = async (search: SearchHistory, e: any) => {

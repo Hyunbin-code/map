@@ -1,5 +1,20 @@
 import { create } from 'zustand';
 import { Location, Route, Decision, BusArrival, SubwayArrival, Stop } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface Favorite {
+  id: string;
+  from: string;
+  to: string;
+  timestamp: number;
+}
+
+interface SearchHistory {
+  id: string;
+  from: string;
+  to: string;
+  timestamp: number;
+}
 
 interface AppState {
   // 사용자 상태
@@ -18,6 +33,10 @@ interface AppState {
   lastNotification: Decision | null;
   notificationHistory: Decision[];
 
+  // 즐겨찾기 & 검색 기록
+  favorites: Favorite[];
+  searchHistory: SearchHistory[];
+
   // Actions
   setUserLocation: (location: Location) => void;
   setRoute: (route: Route | null) => void;
@@ -29,6 +48,11 @@ interface AppState {
   setCurrentDecision: (decision: Decision | null) => void;
   addNotification: (notification: Decision) => void;
   clearNotifications: () => void;
+  addFavorite: (from: string, to: string) => void;
+  removeFavorite: (id: string) => void;
+  loadFavorites: () => Promise<void>;
+  addSearchHistory: (from: string, to: string) => void;
+  loadSearchHistory: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -43,6 +67,8 @@ export const useStore = create<AppState>((set) => ({
   currentDecision: null,
   lastNotification: null,
   notificationHistory: [],
+  favorites: [],
+  searchHistory: [],
 
   // Actions
   setUserLocation: (location) => set({ userLocation: location }),
@@ -84,4 +110,62 @@ export const useStore = create<AppState>((set) => ({
       notificationHistory: [],
       lastNotification: null,
     }),
+
+  addFavorite: async (from, to) => {
+    const favorite: Favorite = {
+      id: Date.now().toString(),
+      from,
+      to,
+      timestamp: Date.now(),
+    };
+    set((state) => {
+      const newFavorites = [...state.favorites, favorite];
+      AsyncStorage.setItem('timeright_favorites', JSON.stringify(newFavorites));
+      return { favorites: newFavorites };
+    });
+  },
+
+  removeFavorite: async (id) => {
+    set((state) => {
+      const newFavorites = state.favorites.filter((f) => f.id !== id);
+      AsyncStorage.setItem('timeright_favorites', JSON.stringify(newFavorites));
+      return { favorites: newFavorites };
+    });
+  },
+
+  loadFavorites: async () => {
+    try {
+      const stored = await AsyncStorage.getItem('timeright_favorites');
+      if (stored) {
+        set({ favorites: JSON.parse(stored) });
+      }
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+    }
+  },
+
+  addSearchHistory: async (from, to) => {
+    const history: SearchHistory = {
+      id: Date.now().toString(),
+      from,
+      to,
+      timestamp: Date.now(),
+    };
+    set((state) => {
+      const newHistory = [history, ...state.searchHistory].slice(0, 10); // 최근 10개만
+      AsyncStorage.setItem('timeright_search_history', JSON.stringify(newHistory));
+      return { searchHistory: newHistory };
+    });
+  },
+
+  loadSearchHistory: async () => {
+    try {
+      const stored = await AsyncStorage.getItem('timeright_search_history');
+      if (stored) {
+        set({ searchHistory: JSON.parse(stored) });
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
+    }
+  },
 }));
