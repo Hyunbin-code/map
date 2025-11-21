@@ -1,0 +1,456 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  ScrollView,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MapView, { Marker } from 'react-native-maps';
+import { OnboardingSpeed } from '../components/OnboardingSpeed';
+import { SearchBar } from '../components/SearchBar';
+import { RouteCard, RouteStep } from '../components/RouteCard';
+import { RouteComparison } from '../components/RouteComparison';
+import { NavigationView } from '../components/NavigationView';
+import { useStore } from '../stores/useStore';
+import LocationService from '../services/LocationService';
+import WeatherService, { WeatherData } from '../services/WeatherService';
+
+interface SearchQuery {
+  from: string;
+  to: string;
+}
+
+export default function HomeScreen() {
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [userSpeed, setUserSpeed] = useState<number | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<SearchQuery>({ from: '', to: '' });
+  const [isLoading, setIsLoading] = useState(true);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const { userLocation, setUserLocation, addFavorite, loadFavorites, addSearchHistory, loadSearchHistory } = useStore();
+
+  useEffect(() => {
+    checkOnboarding();
+    initializeLocation();
+    loadFavorites();
+    loadSearchHistory();
+  }, []);
+
+  const checkOnboarding = async () => {
+    try {
+      const onboarded = await AsyncStorage.getItem('timeright_onboarded');
+      const speed = await AsyncStorage.getItem('timeright_user_speed');
+      if (onboarded) {
+        setHasCompletedOnboarding(true);
+        if (speed) setUserSpeed(parseFloat(speed));
+      }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error checking onboarding:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const initializeLocation = async () => {
+    try {
+      const location = await LocationService.getCurrentLocation();
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setUserLocation(coords);
+
+      // 날씨 정보 로드
+      const weatherData = await WeatherService.getCurrentWeather(
+        coords.latitude,
+        coords.longitude
+      );
+      setWeather(weatherData);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      // Fallback to Seoul coordinates
+      const fallbackCoords = {
+        latitude: 37.5665,
+        longitude: 126.978,
+      };
+      setUserLocation(fallbackCoords);
+
+      // Fallback 위치로 날씨 정보 로드
+      try {
+        const weatherData = await WeatherService.getCurrentWeather(
+          fallbackCoords.latitude,
+          fallbackCoords.longitude
+        );
+        setWeather(weatherData);
+      } catch (weatherError) {
+        console.error('Error getting weather:', weatherError);
+      }
+    }
+  };
+
+  const handleOnboardingComplete = async (speed: number) => {
+    try {
+      await AsyncStorage.setItem('timeright_onboarded', 'true');
+      await AsyncStorage.setItem('timeright_user_speed', speed.toString());
+      setUserSpeed(speed);
+      setHasCompletedOnboarding(true);
+    } catch (error) {
+      console.error('Error saving onboarding:', error);
+    }
+  };
+
+  const handleSearch = (query: SearchQuery) => {
+    setSearchQuery(query);
+    if (query.from && query.to) {
+      addSearchHistory(query.from, query.to);
+    }
+  };
+
+  const handleAddFavorite = () => {
+    if (searchQuery.from && searchQuery.to) {
+      addFavorite(searchQuery.from, searchQuery.to);
+    }
+  };
+
+  const handleStartNavigation = (route: any) => {
+    setSelectedRoute(route);
+    setIsNavigating(true);
+  };
+
+  const handleStopNavigation = () => {
+    setIsNavigating(false);
+    setSelectedRoute(null);
+  };
+
+  const handleRouteSelect = (routeId: number) => {
+    setSelectedRoute({ id: routeId, type: routeId === 1 ? 'fast' : 'less-transfer' });
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>로딩 중...</Text>
+      </View>
+    );
+  }
+
+  if (!hasCompletedOnboarding) {
+    return <OnboardingSpeed onComplete={handleOnboardingComplete} />;
+  }
+
+  if (isNavigating && selectedRoute && userLocation) {
+    return (
+      <NavigationView
+        route={selectedRoute}
+        userSpeed={userSpeed || 1.2}
+        onStop={handleStopNavigation}
+        currentLocation={userLocation}
+        destination={{
+          latitude: userLocation.latitude + 0.005,
+          longitude: userLocation.longitude + 0.005,
+        }}
+      />
+    );
+  }
+
+  const mockRoutes = [
+    {
+      id: 1,
+      title: '빠른 경로',
+      time: '24분',
+      arrivalTime: '14:35',
+      steps: [
+        { type: 'walk', duration: '3분', distance: '240m', detail: '강남역 7번 출구까지' },
+        { type: 'subway', line: '2호선', duration: '12분', detail: '강남 → 역삼 (1정거장)' },
+        { type: 'walk', duration: '9분', distance: '720m', detail: '목적지까지' },
+      ] as RouteStep[],
+      price: '1,400원',
+      badge: '추천',
+    },
+    {
+      id: 2,
+      title: '환승 적음',
+      time: '28분',
+      arrivalTime: '14:39',
+      steps: [
+        { type: 'walk', duration: '5분', distance: '380m', detail: '강남역 3번 출구까지' },
+        { type: 'bus', line: '146', duration: '15분', detail: '강남역 → 역삼역 (4정거장)' },
+        { type: 'walk', duration: '8분', distance: '640m', detail: '목적지까지' },
+      ] as RouteStep[],
+      price: '1,400원',
+    },
+  ];
+
+  return (
+    <View style={styles.container}>
+      {/* Map */}
+      {userLocation && (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+          showsUserLocation
+          showsMyLocationButton={false}
+        >
+          {selectedRoute && (
+            <>
+              <Marker
+                coordinate={{
+                  latitude: userLocation.latitude + 0.005,
+                  longitude: userLocation.longitude + 0.005,
+                }}
+                pinColor="red"
+              />
+            </>
+          )}
+        </MapView>
+      )}
+
+      {/* Search Bar */}
+      <SearchBar onSearch={handleSearch} style={styles.searchBar} />
+
+      {/* Route Comparison */}
+      {showComparison && searchQuery.from && searchQuery.to && !selectedRoute && (
+        <RouteComparison
+          route1={mockRoutes[0]}
+          route2={mockRoutes[1]}
+          onSelect={(routeId) => {
+            handleRouteSelect(routeId);
+            setShowComparison(false);
+          }}
+          onClose={() => setShowComparison(false)}
+        />
+      )}
+
+      {/* Route Cards */}
+      {searchQuery.from && searchQuery.to && !selectedRoute && !showComparison && (
+        <View style={styles.routeCardsContainer}>
+          <View style={styles.routeCardsHeader}>
+            <Text style={styles.routeCardsTitle}>경로 {mockRoutes.length}개</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleAddFavorite}
+              >
+                <View style={styles.bookmarkIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.compareButton}
+                onPress={() => setShowComparison(true)}
+              >
+                <View style={styles.compareIcon}>
+                  <View style={styles.compareIconBar} />
+                  <View style={styles.compareIconBar} />
+                </View>
+                <Text style={styles.compareButtonText}>비교</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.routeCardsContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {mockRoutes.map((route) => (
+              <RouteCard
+                key={route.id}
+                title={route.title}
+                time={route.time}
+                arrivalTime={route.arrivalTime}
+                steps={route.steps}
+                price={route.price}
+                onSelect={() => handleRouteSelect(route.id)}
+                badge={route.badge}
+                weather={
+                  weather
+                    ? {
+                        icon: weather.icon,
+                        conditionKo: weather.conditionKo,
+                        temperature: weather.temperature,
+                      }
+                    : undefined
+                }
+                signalWaitTime={2}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Selected Route - Start Navigation */}
+      {selectedRoute && !isNavigating && (
+        <View style={styles.selectedRouteCard}>
+          <View style={styles.selectedRouteHeader}>
+            <View>
+              <Text style={styles.selectedRouteTitle}>선택된 경로</Text>
+              <Text style={styles.selectedRouteInfo}>24분 소요 · 14:35 도착</Text>
+            </View>
+            <TouchableOpacity onPress={() => setSelectedRoute(null)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={() => handleStartNavigation(selectedRoute)}
+          >
+            <Text style={styles.startButtonText}>네비게이션 시작</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#6B7280',
+  },
+  map: {
+    flex: 1,
+  },
+  searchBar: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+  },
+  routeCardsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '60%',
+    backgroundColor: 'transparent',
+  },
+  routeCardsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  routeCardsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favoriteButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  bookmarkIcon: {
+    width: 14,
+    height: 18,
+    backgroundColor: '#F59E0B',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    position: 'relative',
+  },
+  compareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  compareIcon: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  compareIconBar: {
+    width: 2,
+    height: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
+  },
+  compareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  routeCardsContent: {
+    padding: 16,
+    paddingTop: 0,
+    gap: 12,
+  },
+  selectedRouteCard: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  selectedRouteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  selectedRouteTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2563EB',
+    marginBottom: 4,
+  },
+  selectedRouteInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#9CA3AF',
+  },
+  startButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

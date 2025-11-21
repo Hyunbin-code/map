@@ -1103,6 +1103,163 @@ class AnalyticsService {
    - 스마트워치 연동
    - 친구와 경로 공유
 
+4. **Gemini API 음성 제어 (향후 계획)**
+   - 음성 인식 기반 앱 제어
+   - 자연어 처리를 통한 목적지 검색
+   - 실시간 경로 변경 및 재검색
+   - 상황별 맞춤형 음성 응답
+
+   ```javascript
+   // services/GeminiVoiceService.js (향후 구현 예정)
+   import { GoogleGenerativeAI } from '@google/generative-ai';
+   import VoiceService from './VoiceService';
+
+   class GeminiVoiceService {
+     constructor() {
+       this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+       this.model = null;
+       this.conversationHistory = [];
+     }
+
+     async initialize() {
+       // Gemini Pro 모델 초기화
+       this.model = this.genAI.getGenerativeModel({
+         model: 'gemini-pro',
+       });
+
+       // 시스템 프롬프트 설정
+       this.conversationHistory = [{
+         role: 'user',
+         parts: [{
+           text: `You are TimeRight, a real-time navigation assistant.
+           Help users with:
+           - Searching destinations ("강남역으로 가고 싶어")
+           - Route queries ("지금 출발하면 몇 분 걸려?")
+           - Real-time guidance ("지금 뛰어야 해?")
+           - Alternative routes ("다른 경로 있어?")
+
+           Always respond in Korean, keep it concise and natural.`
+         }]
+       }];
+     }
+
+     async processVoiceCommand(userText) {
+       try {
+         // 대화 히스토리에 추가
+         this.conversationHistory.push({
+           role: 'user',
+           parts: [{ text: userText }]
+         });
+
+         // Gemini API 호출
+         const chat = this.model.startChat({
+           history: this.conversationHistory,
+         });
+
+         const result = await chat.sendMessage(userText);
+         const response = result.response.text();
+
+         // 응답 저장
+         this.conversationHistory.push({
+           role: 'model',
+           parts: [{ text: response }]
+         });
+
+         // 음성으로 응답
+         await VoiceService.speakInfo(response);
+
+         // 명령 분석 및 실행
+         await this.executeAction(userText, response);
+
+         return response;
+       } catch (error) {
+         console.error('[GeminiVoice] Error:', error);
+         return '죄송합니다. 다시 말씀해주세요.';
+       }
+     }
+
+     async executeAction(userText, geminiResponse) {
+       // 목적지 검색 패턴
+       const searchPattern = /(.+)(?:로|으로|까지)\s*(?:가고\s*싶|검색|찾)/;
+       if (searchPattern.test(userText)) {
+         const destination = userText.match(searchPattern)[1];
+         // 목적지 검색 실행
+         store.searchDestination(destination);
+         return;
+       }
+
+       // 경로 재검색 패턴
+       if (/다른\s*경로|경로\s*변경|다시\s*검색/.test(userText)) {
+         store.refreshRoutes();
+         return;
+       }
+
+       // 현재 상태 조회 패턴
+       if (/몇\s*분|언제\s*도착|시간\s*얼마/.test(userText)) {
+         const timeRemaining = store.getTimeRemaining();
+         const minutes = Math.floor(timeRemaining / 60);
+         const seconds = Math.round(timeRemaining % 60);
+         VoiceService.speakRemainingTime(minutes, seconds);
+         return;
+       }
+
+       // 긴급도 조회 패턴
+       if (/뛰어야|서둘러야|빨리\s*가야/.test(userText)) {
+         const decision = store.getCurrentDecision();
+         if (decision) {
+           VoiceService.speakInfo(decision.message);
+         }
+         return;
+       }
+     }
+
+     // 음성 인식 시작
+     async startVoiceRecognition() {
+       // React Native Voice 또는 expo-speech-recognition 사용
+       // 구현 예정
+     }
+
+     clearHistory() {
+       this.conversationHistory = [];
+       this.initialize();
+     }
+   }
+
+   export default new GeminiVoiceService();
+   ```
+
+   **구현 계획**:
+   - Phase 5.1: 기본 음성 인식 추가 (expo-speech-recognition)
+   - Phase 5.2: Gemini API 연동 및 자연어 처리
+   - Phase 5.3: 상황 인식 응답 (현재 위치, 시간, 경로 정보 기반)
+   - Phase 5.4: 멀티모달 입력 (음성 + 텍스트)
+
+   **예상 사용 시나리오**:
+   ```
+   사용자: "강남역으로 가고 싶어"
+   Gemini: "강남역까지 경로를 검색할게요. 출발지는 현재 위치로 할까요?"
+
+   사용자: "응"
+   Gemini: "2개의 경로를 찾았어요. 빠른 경로는 24분, 환승 적은 경로는 28분이에요."
+
+   사용자: "빠른 걸로"
+   Gemini: "빠른 경로로 안내를 시작합니다. 지금은 여유있게 가세요."
+
+   [이동 중...]
+
+   사용자: "지금 뛰어야 해?"
+   Gemini: "아니요, 아직 3분 여유가 있어요. 천천히 가세요."
+   ```
+
+   **필요 라이브러리**:
+   - `@google/generative-ai`: Gemini API SDK
+   - `expo-speech-recognition`: 음성 인식 (또는 react-native-voice)
+   - `expo-speech`: TTS (이미 구현됨)
+
+   **예상 비용**:
+   - Gemini API: 무료 티어 (월 60 requests/minute)
+   - 유료 전환 시: ~$0.00025/request
+
 ---
 
 ## 체크리스트 요약
